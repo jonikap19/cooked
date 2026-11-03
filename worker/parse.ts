@@ -51,17 +51,20 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
 
 const Body = z.object({ text: z.string().trim().min(1).max(10000) });
 
+export const tooManyRequests = { error: "Zu viele Anfragen, bitte kurz warten." };
+export const parseFailed = { error: "Rezept konnte nicht erkannt werden. Bitte Text prüfen." };
+
 export const parse = new Hono<AppEnv>();
 
 parse.post("/api/parse", async (c) => {
   const body = Body.safeParse(await readJson(c));
   if (!body.success) return c.json(invalid, 400);
   const { success } = await c.env.PARSE_LIMIT.limit({ key: c.var.userId });
-  if (!success) return c.json({ error: "Zu viele Anfragen, bitte kurz warten." }, 429);
+  if (!success) return c.json(tooManyRequests, 429);
   try {
     return c.json(await parseRecipeText(c.env.AI, body.data.text));
   } catch (e) {
     if (!(e instanceof ParseError)) throw e;
-    return c.json({ error: "Rezept konnte nicht erkannt werden. Bitte Text prüfen." }, 502);
+    return c.json(parseFailed, 502);
   }
 });

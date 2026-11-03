@@ -15,7 +15,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 - 2026-11-03 — Spec deviation: `source_platform` is picked by the user (chips), preselected via `detectPlatform`. Why: matches design.
 - 2026-11-03 — Spec deviation: `user_id` = lower-cased email from the Access JWT, no users table. Why: simplest for a few friends.
 - 2026-11-03 — Spec deviation: no service worker; manifest alone makes it installable, offline is out of scope. Why: YAGNI.
-- 2026-11-03 — Spec deviation: `image_url` stays null, all images show the "Rezeptbild" placeholder. Why: text import has no image; link import comes later.
+- 2026-11-03 — Spec deviation: `image_url` is a `/api/images/<id>` handle (R2) set by link import, null otherwise; null shows the "Rezeptbild" placeholder. Why: link import brings an image, text import has none.
 - 2026-11-03 — Spec deviation: remove/reset of a single item lives in the edit sheet. Why: designs show only the pencil per row.
 - 2026-11-03 — Spec deviation: added "delete recipe" at the bottom of the detail screen. Why: needed to clean up bad imports.
 
@@ -24,6 +24,11 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Learnings
 
+- 2026-11-03 — `adjustments.insert_after` places added items after an original, ordered by `created_at, rowid` (ids are random UUIDs). Why: UUIDs give no stable order.
+- 2026-11-03 — The `cooked-images` R2 bucket must exist before deploy; `wrangler deploy` fails otherwise. Why: the Worker binds it.
+- 2026-11-03 — Tmp import images live in R2 `tmp/<uuid>` with `customMetadata.owner`, moved to `<recipeId>` on save. Why: the recipe id does not exist yet at import time.
+- 2026-11-03 — YouTube description is read from the page HTML `shortDescription`, no API key (upgrade path: Data API v3). Why: simplest, no secret.
+- 2026-11-03 — Instagram link import is unsupported, falls back to the text tab. Why: the Worker gets a JS shell with no caption.
 - 2026-11-03 — Access email login: new Zero Trust accounts default to the Cloudflare IdP; One-time PIN must be added under Integrations → Identity providers and enabled on the app. The Worker quick-enable dialog has no per-email option — edit the `cooked - Production` policy (Emails selector). PINs are only sent to addresses the policy allows. Why: first login failed without OTP.
 - 2026-11-03 — Deploys are manual (owner runs `npm run deploy` from `main`, migrations first); the auto-deploy pipeline is deferred by the owner. Why: owner wants to read up first.
 

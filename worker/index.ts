@@ -2,12 +2,14 @@ import { Hono } from "hono";
 import { recipes } from "./recipes";
 import { parse } from "./parse";
 import { split } from "./split";
+import { importLink } from "./import";
 import { accessAuth, sameOrigin, securityHeaders, type AppEnv } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
 export type Env = {
   DB: D1Database;
   AI: Ai;
+  IMAGES: R2Bucket;
   PARSE_LIMIT: RateLimit;
   TEAM_DOMAIN: string;
   POLICY_AUD: string;
@@ -30,6 +32,7 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.route("/", recipes);
   app.route("/", parse);
   app.route("/", split);
+  app.route("/", importLink);
 
   return app;
 }

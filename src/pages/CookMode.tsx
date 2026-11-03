@@ -78,6 +78,7 @@ export default function CookMode() {
 
   useEffect(() => {
     if (!anyRunning) return;
+    setNow(Date.now()); // the tick is off while idle, so `now` is stale when a timer starts
     const tick = setInterval(() => setNow(Date.now()), 1000); // only re-renders; time comes from endAt
     return () => clearInterval(tick);
   }, [anyRunning]);

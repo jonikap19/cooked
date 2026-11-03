@@ -25,14 +25,19 @@ export const ParsedRecipe = z.object({
 });
 export type ParsedRecipe = z.infer<typeof ParsedRecipe>;
 
-const HttpsUrl = z
+export const HttpsUrl = z
   .url()
-  .max(2000)
+  .max(2048)
   .refine((value) => URL.canParse(value) && new URL(value).protocol === "https:", "Nur https-Links");
 
 export const NewRecipe = ParsedRecipe.extend({
   source_url: HttpsUrl.nullable(),
   source_platform: Platform.nullable(),
+  // Only a handle from POST /api/import-link; the server moves it to the recipe on save.
+  image_url: z
+    .string()
+    .regex(/^\/api\/images\/tmp\/[0-9a-f-]{36}$/)
+    .nullish(),
 });
 export type NewRecipe = z.infer<typeof NewRecipe>;
 

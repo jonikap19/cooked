@@ -31,6 +31,12 @@ describe("request", () => {
     expect(error).toMatchObject({ status: 400, message: "x" });
   });
 
+  it("keeps the parsed error body on ApiError.data", async () => {
+    stub(Response.json({ error: "x", caption: "Rezepttext" }, { status: 422 }));
+    const error = (await request("/api/import-link").catch((e) => e)) as ApiError;
+    expect(error.data?.caption).toBe("Rezepttext");
+  });
+
   it("throws SessionExpiredError when fetch rejects", async () => {
     stub(new TypeError("Failed to fetch"));
     await expect(request("/api/me")).rejects.toBeInstanceOf(SessionExpiredError);
