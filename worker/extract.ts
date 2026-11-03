@@ -26,7 +26,10 @@ export function decodeEntities(s: string): string {
 /** `<meta>` content by lower-cased `property`/`name`, first occurrence wins, any attribute order. */
 function metaTags(html: string): Map<string, string> {
   const tags = new Map<string, string>();
-  for (const [tag] of html.matchAll(/<meta\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
+  // Split first so a page full of unclosed "<meta" costs linear, not quadratic, time.
+  for (const piece of html.split(/<meta\b/i).slice(1)) {
+    const tag = /(?:[^>"']|"[^"]*"|'[^']*')*>/y.exec(piece)?.[0];
+    if (!tag) continue;
     const attrs: Record<string, string> = {};
     for (const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
       attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4];
@@ -56,7 +59,13 @@ function findRecipe(node: unknown): Json | null {
 }
 
 function jsonLdRecipe(html: string): Json | null {
-  for (const [, body] of html.matchAll(/<script\b[^>]*\btype\s*=\s*["']?application\/ld\+json\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+  // Split instead of one big regex: unclosed "<script" must not cost quadratic time.
+  for (const piece of html.split(/<script\b/i).slice(1)) {
+    const tagEnd = piece.indexOf(">");
+    if (tagEnd < 0 || !/\btype\s*=\s*["']?application\/ld\+json\b/i.test(piece.slice(0, tagEnd))) continue;
+    const bodyEnd = piece.search(/<\/script>/i);
+    if (bodyEnd < tagEnd) continue;
+    const body = piece.slice(tagEnd + 1, bodyEnd);
     try {
       const found = findRecipe(JSON.parse(body));
       if (found) return found;
@@ -148,7 +157,12 @@ export function extractFromHtml(platform: "instagram" | "youtube" | "web", html:
     };
   }
   const recipe = jsonLdRecipe(html);
-  const rendered = recipe && renderRecipe(recipe);
+  let rendered: string | null = null;
+  try {
+    rendered = recipe && renderRecipe(recipe);
+  } catch {
+    // e.g. stack overflow on absurdly nested instructions: treat as no usable text
+  }
   return {
     text: cap(rendered),
     caption: cap(description),

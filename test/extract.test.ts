@@ -116,3 +116,20 @@ describe("extractFromHtml: web", () => {
     expect(r.text).toHaveLength(10000);
   });
 });
+
+describe("extractFromHtml: hostile pages", () => {
+  it("scans unclosed <meta and <script tags in linear time", () => {
+    for (const piece of ["<meta ", '<script type="application/ld+json">']) {
+      const started = performance.now();
+      const result = extractFromHtml("web", piece.repeat(500_000 / piece.length));
+      expect(performance.now() - started).toBeLessThan(500);
+      expect(result.text).toBeNull();
+    }
+  });
+  it("returns no text for absurdly nested instructions instead of throwing", () => {
+    let nested: unknown = { text: "Rühren" };
+    for (let i = 0; i < 20_000; i++) nested = { name: "Teil", itemListElement: [nested] };
+    const html = ld({ "@type": "Recipe", name: "X", recipeInstructions: nested });
+    expect(extractFromHtml("web", html).text).toBeNull();
+  });
+});
