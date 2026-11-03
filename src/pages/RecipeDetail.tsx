@@ -124,11 +124,10 @@ export default function RecipeDetail() {
         await load();
         throw err;
       }
-    }).then((done) => {
-      if (done) {
-        setSplitting(false);
-        setSheet(null);
-      }
+    }).then(() => {
+      // Also after a failure: part of the split may be saved, so retrying from a stale sheet would duplicate pieces.
+      setSplitting(false);
+      setSheet(null);
     });
   };
 

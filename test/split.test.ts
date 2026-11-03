@@ -41,9 +41,11 @@ describe("POST /api/split-step", () => {
     expect(await res.json()).toEqual({ steps: pieces });
   });
   it("422 when the model returns fewer than 2 pieces", async () => {
-    const res = await call({ text: "Kochen." }, ok(pieces.slice(0, 1)));
-    expect(res.status).toBe(422);
-    expect(await res.json()).toEqual({ error: "Dieser Schritt lässt sich nicht weiter aufteilen." });
+    for (const few of [pieces.slice(0, 1), []]) {
+      const res = await call({ text: "Kochen." }, ok(few));
+      expect(res.status).toBe(422);
+      expect(await res.json()).toEqual({ error: "Dieser Schritt lässt sich nicht weiter aufteilen." });
+    }
   });
   it("502 on invalid output (also more than 6 pieces)", async () => {
     for (const ai of [ok("nope"), ok([...pieces, ...pieces, ...pieces]), fakeAi(async () => { throw new Error("boom"); })]) {
