@@ -22,12 +22,12 @@ After changing bindings in `wrangler.jsonc`, run `npm run types`.
 2. `npm run db:migrate:remote`
 3. `npm run deploy`
 4. Dashboard -> Workers -> cooked -> Settings -> Domains & Routes -> enable Cloudflare Access on the `workers.dev` hostname. Do the same for any custom domain: the Worker rejects API calls without a valid Access JWT, but the static pages are public unless Access covers every hostname.
-5. Access policy: Allow, include the listed emails; login method One-time PIN; session duration 1 month.
-6. Copy the application's AUD tag and your team domain (`https://<team>.cloudflareaccess.com`) into `POLICY_AUD` and `TEAM_DOMAIN` under `vars` in `wrangler.jsonc` (replace the placeholders), then `npm run deploy` again.
+5. The enable dialog only offers "Cloudflare account" or "Email domain": pick "Cloudflare account". Then in Zero Trust -> Access controls -> Policies, edit `cooked - Production`: add an Include rule with selector **Emails** listing every allowed address, and remove the "Cloudflare account" rule. Login method One-time PIN (Zero Trust -> Settings -> Authentication), session duration 1 month on the application.
+6. Copy the application's AUD tag and your team domain (`https://<team>.cloudflareaccess.com`; it's also the host an unauthenticated visit redirects to) into `POLICY_AUD` and `TEAM_DOMAIN` under `vars` in `wrangler.jsonc` (replace the placeholders), then `npm run deploy` again.
 
 ## Adding a friend
 
-Add their email to the Access policy. No code change, no redeploy.
+Add their email to the `cooked - Production` Access policy (Emails selector). No code change, no redeploy.
 
 ## Install on a phone
 
