@@ -45,3 +45,14 @@ describe("Adjustment round trip", () => {
     expect(Adjustment.parse(adjustment)).toEqual(adjustment);
   });
 });
+
+describe("trimming", () => {
+  it("trims ingredient names and step texts, and still exports JSON schema", async () => {
+    const { IngredientValues, StepValues, ParsedRecipe } = await import("../shared/schema");
+    expect(IngredientValues.parse({ name: " Salz ", amount: null, unit: "" }).name).toBe("Salz");
+    expect(StepValues.parse({ text: " x ", duration_minutes: null }).text).toBe("x");
+    expect(IngredientValues.safeParse({ name: "  ", amount: null, unit: "" }).success).toBe(false);
+    const { z } = await import("zod");
+    expect(() => z.toJSONSchema(ParsedRecipe)).not.toThrow();
+  });
+});

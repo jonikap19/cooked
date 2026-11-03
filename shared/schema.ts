@@ -3,14 +3,14 @@ import { z } from "zod";
 const Platform = z.enum(["instagram", "youtube", "web"]);
 
 export const IngredientValues = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().trim().min(1).max(200),
   amount: z.number().min(0).max(100_000).nullable(),
   unit: z.string().max(30),
 });
 export type IngredientValues = z.infer<typeof IngredientValues>;
 
 export const StepValues = z.object({
-  text: z.string().min(1).max(2000),
+  text: z.string().trim().min(1).max(2000),
   duration_minutes: z.number().int().min(1).max(1440).nullable(),
 });
 export type StepValues = z.infer<typeof StepValues>;
