@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { sessionStore } from "./api";
+import CookMode from "./pages/CookMode";
 import AddRecipe from "./pages/AddRecipe";
 import Home from "./pages/Home";
 import RecipeDetail from "./pages/RecipeDetail";
@@ -16,9 +17,6 @@ function SessionExpired() {
   );
 }
 
-// Placeholders until the add / detail / cook screens land.
-const Soon = ({ title }: { title: string }) => <h1 className="page">{title}</h1>;
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -27,7 +25,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/neu" element={<AddRecipe />} />
         <Route path="/rezept/:id" element={<RecipeDetail />} />
-        <Route path="/rezept/:id/kochen" element={<Soon title="Kochen" />} />
+        <Route path="/rezept/:id/kochen" element={<CookMode />} />
       </Routes>
     </BrowserRouter>
   );

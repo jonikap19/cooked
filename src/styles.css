@@ -787,3 +787,37 @@ a {
   border-radius: 999px;
   background: var(--surface);
 }
+
+/* Cook mode */
+.cook {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: var(--primary);
+  color: #fff;
+}
+.cook-top { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.cook-icon, .cook-wake { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: none; border: 0; color: #fff; cursor: pointer; }
+.cook-title { flex: 1; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: rgba(255, 255, 255, 0.75); }
+.cook-wake { font-size: 0.875rem; color: rgba(255, 255, 255, 0.85); }
+.cook-count { font-weight: 700; }
+.cook-progress { display: flex; gap: 6px; margin: 10px 0 20px; }
+.cook-progress span { flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); }
+.cook-progress span.on { background: #fff; }
+.cook-hint { align-self: flex-start; padding: 6px 12px; border-radius: 999px; background: var(--adj-bg); color: var(--adj-text); font-size: 0.875rem; font-weight: 700; }
+.cook-text { flex: 1; margin: 16px 0; font-family: "Bricolage Grotesque Variable", sans-serif; font-size: 2rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.cook-timer { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px; border-radius: 20px; background: var(--cook-panel); border: 1px solid rgba(255, 255, 255, 0.2); }
+.cook-ring { position: relative; flex: none; width: 104px; height: 104px; }
+.cook-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.cook-ring circle { fill: none; stroke-width: 8; }
+.cook-ring-track { stroke: rgba(255, 255, 255, 0.2); }
+.cook-ring-arc { stroke: #fff; stroke-linecap: round; }
+.cook-clock { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: "Bricolage Grotesque Variable", sans-serif; font-size: 1.5rem; font-weight: 700; }
+.cook-timer-side { flex: 1; display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: rgba(255, 255, 255, 0.75); }
+.cook-timer-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; background: #fff; color: var(--primary); font-weight: 700; cursor: pointer; }
+.cook-nav { display: flex; gap: 12px; }
+.cook-back, .cook-next { flex: 1; min-height: 56px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 16px; font-weight: 700; cursor: pointer; }
+.cook-back { background: none; border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; }
+.cook-back:disabled { opacity: 0.4; cursor: default; }
+.cook-next { background: var(--bg); border: 0; color: var(--primary); }
