@@ -117,4 +117,42 @@ describe("adjustments api", () => {
     expect((await call(a, `/api/recipes/${id}/note`, "PUT", { text: "  " })).status).toBe(204);
     expect((await get(a, id)).note).toBe("");
   });
+
+  it("add with insert_after: stored, ordered, 404 for foreign/wrong-type anchors, 400 on modify/remove", async () => {
+    const a = user();
+    const id = await create(a);
+    const other = await create(a);
+    const full = await get(a, id);
+    const stepId = full.steps[0].id;
+    const addStep = (insert_after?: string | null) => ({
+      target_type: "step", action: "add", target_id: null, new_values: { text: "Neu", duration_minutes: null },
+      ...(insert_after === undefined ? {} : { insert_after }),
+    });
+    const plain = await adj(id, addStep(), a);
+    expect(plain.status).toBe(201);
+    expect(((await plain.json()) as any).insert_after).toBeNull();
+    const anchored = await adj(id, addStep(stepId), a);
+    expect(anchored.status).toBe(201);
+    expect(((await anchored.json()) as any).insert_after).toBe(stepId);
+    expect((await adj(id, addStep((await get(a, other)).steps[0].id), a)).status).toBe(404);
+    expect((await adj(id, addStep(full.ingredients[0].id), a)).status).toBe(404);
+    expect((await adj(id, addStep("nope"), a)).status).toBe(404);
+    expect((await adj(id, { target_type: "step", action: "remove", target_id: stepId, insert_after: stepId }, a)).status).toBe(400);
+    expect((await adj(id, { target_type: "step", action: "modify", target_id: stepId, new_values: { text: "x" }, insert_after: stepId }, a)).status).toBe(400);
+    expect((await get(a, id)).adjustments).toHaveLength(2);
+  });
+
+  it("split flow: remove works on a modified step; pieces keep send order", async () => {
+    const a = user();
+    const id = await create(a);
+    const stepId = (await get(a, id)).steps[0].id;
+    expect((await adj(id, { target_type: "step", action: "modify", target_id: stepId, new_values: { text: "Anders" } }, a)).status).toBe(201);
+    expect((await adj(id, { target_type: "step", action: "remove", target_id: stepId }, a)).status).toBe(201);
+    for (const text of ["Eins", "Zwei", "Drei"]) {
+      const res = await adj(id, { target_type: "step", action: "add", target_id: null, insert_after: stepId, new_values: { text, duration_minutes: null } }, a);
+      expect(res.status).toBe(201);
+    }
+    const added = (await get(a, id)).adjustments.filter((x: any) => x.action === "add");
+    expect(added.map((x: any) => x.new_values.text)).toEqual(["Eins", "Zwei", "Drei"]);
+  });
 });

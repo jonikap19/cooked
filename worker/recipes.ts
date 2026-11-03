@@ -93,7 +93,7 @@ recipes.get("/api/recipes/:id", async (c) => {
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare(
-      "SELECT id, target_type, target_id, action, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, id",
+      "SELECT id, target_type, target_id, action, insert_after, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid",
     ).bind(id),
     DB.prepare("SELECT body FROM notes WHERE recipe_id = ?").bind(id),
   ]);
@@ -128,7 +128,7 @@ recipes.delete("/api/recipes/:id", async (c) => {
 });
 
 const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
-const ADJ_COLS = "id, target_type, target_id, action, new_values, created_at, updated_at";
+const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, created_at, updated_at";
 type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
 const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });
 
@@ -145,15 +145,20 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
 
   const aid = crypto.randomUUID();
   const newValues = "new_values" in input ? JSON.stringify(input.new_values) : null;
+  // table name comes from the validated enum, never from input
+  const table = input.target_type === "ingredient" ? "ingredients" : "steps";
   if (input.action === "add") {
-    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values) VALUES (?, ?, ?, NULL, 'add', ?)")
-      .bind(aid, rid, input.target_type, newValues)
+    const anchor = input.insert_after ?? null;
+    if (anchor && !(await DB.prepare(`SELECT 1 AS x FROM ${table} WHERE id = ? AND recipe_id = ?`).bind(anchor, rid).first())) {
+      return c.json(notFound, 404);
+    }
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values) VALUES (?, ?, ?, NULL, 'add', ?, ?)")
+      .bind(aid, rid, input.target_type, anchor, newValues)
       .run();
     return c.json(await readAdjustment(c, rid, aid), 201);
   }
 
-  // target must belong to this recipe (table name comes from the validated enum, never from input)
-  const table = input.target_type === "ingredient" ? "ingredients" : "steps";
+  // target must belong to this recipe
   const original = await DB.prepare(`SELECT * FROM ${table} WHERE id = ? AND recipe_id = ?`)
     .bind(input.target_id, rid)
     .first<Record<string, unknown>>();
