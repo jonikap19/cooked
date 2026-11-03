@@ -1,0 +1,65 @@
+import { Pencil, Undo2 } from "lucide-react";
+import { formatQuantity } from "../../shared/format";
+import type { Merged } from "../../shared/merge";
+import type { Ingredient, Step } from "../../shared/schema";
+
+interface Props {
+  item: Merged<Ingredient> | Merged<Step>;
+  kind: "ingredient" | "step";
+  number?: number;
+  scale: (n: number | null) => number | null;
+  showOriginal: boolean;
+  onEdit(): void;
+  onRestore(): void;
+  busy: boolean;
+}
+
+export default function ItemRow({ item, kind, number, scale, showOriginal, onEdit, onRestore, busy }: Props) {
+  const status = showOriginal ? "original" : item.status;
+  const changed = status === "modified" || status === "added";
+  const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
+  const step = kind === "step" ? (item as Merged<Step>) : null;
+  const original = ingredient?.original ?? null;
+  const stepOriginal = step?.original ?? null;
+
+  let subline = "";
+  if (status === "added") subline = "Von dir hinzugefügt";
+  else if (status === "removed") subline = "Von dir entfernt";
+  else if (status === "modified") {
+    if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
+    else if (step && stepOriginal) {
+      subline =
+        step.duration_minutes !== stepOriginal.duration_minutes
+          ? `Geändert · Original ${stepOriginal.duration_minutes ?? "ohne"} Min`
+          : "Geändert · Originaltext";
+    }
+  }
+
+  return (
+    <li className={`item item-${status}`}>
+      {step && (
+        <span className="step-number" aria-hidden="true">
+          {status === "removed" || number === undefined ? "–" : number}
+        </span>
+      )}
+      {ingredient && <strong className="item-amount">{formatQuantity(scale(ingredient.amount), ingredient.unit)}</strong>}
+      <div className="item-body">
+        <span className="item-main">{ingredient ? ingredient.name : step?.text}</span>
+        {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
+        {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
+      </div>
+      {status === "removed" ? (
+        <button className="restore" disabled={busy} onClick={onRestore}>
+          <Undo2 size={18} aria-hidden="true" />
+          Wiederherstellen
+        </button>
+      ) : (
+        !showOriginal && (
+          <button className="icon-button" onClick={onEdit} aria-label="Bearbeiten">
+            <Pencil size={18} aria-hidden="true" />
+          </button>
+        )
+      )}
+    </li>
+  );
+}

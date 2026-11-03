@@ -1,4 +1,8 @@
 .env*
+.dev.vars
 !.env.example
 node_modules/
 .DS_Store
+screenshots/
+dist/
+.wrangler/

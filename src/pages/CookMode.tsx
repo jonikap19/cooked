@@ -1,0 +1,174 @@
+import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Sun, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
+import { ApiError, api, SessionExpiredError } from "../api";
+import { durationDiffLabel, formatClock, remainingSeconds } from "../lib/timer";
+import { useWakeLock } from "../lib/wakeLock";
+import { mergeRecipe, type Merged } from "../../shared/merge";
+import type { RecipeFull, Step } from "../../shared/schema";
+
+const R = 52;
+const C = 2 * Math.PI * R;
+
+type TimerState = { endAt: number | null; remainingWhenPaused: number | null };
+
+// State lives in CookMode, so a running timer survives Zurück/Weiter.
+function StepTimer({ step, minutes, state, now, onChange }: {
+  step: Merged<Step>;
+  minutes: number;
+  state: TimerState;
+  now: number;
+  onChange: (state: TimerState) => void;
+}) {
+  const total = minutes * 60;
+  const running = state.endAt !== null;
+  const remaining = state.endAt !== null ? remainingSeconds(state.endAt, now) : (state.remainingWhenPaused ?? total);
+  const done = running && remaining === 0;
+
+  const start = (seconds: number) => onChange({ endAt: Date.now() + seconds * 1000, remainingWhenPaused: null });
+  const click = () => {
+    if (done) start(total);
+    else if (running) onChange({ endAt: null, remainingWhenPaused: remaining });
+    else start(remaining);
+  };
+  const original = step.original?.duration_minutes ?? null;
+  const label = step.status === "modified" && original !== null && original !== minutes
+    ? `Original ${original} Min · bei dir ${minutes} Min`
+    : `${minutes} Min`;
+  const Icon = done ? RotateCcw : running ? Pause : Play;
+  const text = done ? "Neu starten" : running ? "Pausieren" : state.remainingWhenPaused !== null ? "Fortsetzen" : "Timer starten";
+
+  return (
+    <section className="cook-timer">
+      <div className="cook-ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r={R} className="cook-ring-track" />
+          <circle cx="60" cy="60" r={R} className="cook-ring-arc" strokeDasharray={C} strokeDashoffset={C * (1 - remaining / total)} />
+        </svg>
+        <span className="cook-clock">{done ? "Fertig" : formatClock(remaining)}</span>
+      </div>
+      <div className="cook-timer-side">
+        <p>{label}</p>
+        <button className="cook-timer-btn" onClick={click}><Icon size={18} aria-hidden="true" />{text}</button>
+      </div>
+    </section>
+  );
+}
+
+export default function CookMode() {
+  const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const [full, setFull] = useState<RecipeFull | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [index, setIndex] = useState(0);
+  const [awake, setAwake] = useState(true);
+  const held = useWakeLock(awake);
+  const [timers, setTimers] = useState<Record<string, TimerState>>({});
+  const [now, setNow] = useState(() => Date.now());
+  const buzzed = useRef(new Set<string>());
+  const anyRunning = Object.values(timers).some((t) => t.endAt !== null);
+
+  useEffect(() => {
+    if (!anyRunning) return;
+    const tick = setInterval(() => setNow(Date.now()), 1000); // only re-renders; time comes from endAt
+    return () => clearInterval(tick);
+  }, [anyRunning]);
+
+  // Vibrate once per finished timer, whether or not its step is displayed.
+  useEffect(() => {
+    for (const [stepId, t] of Object.entries(timers)) {
+      const key = `${stepId}:${t.endAt}`;
+      if (t.endAt !== null && remainingSeconds(t.endAt, now) === 0 && !buzzed.current.has(key)) {
+        buzzed.current.add(key);
+        navigator.vibrate?.(500);
+      }
+    }
+  }, [timers, now]);
+
+  const load = async () => {
+    try {
+      setFull(await api.getRecipe(id));
+      setLoadError("");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) setNotFound(true);
+      else if (err instanceof ApiError) setLoadError(err.message);
+      else if (!(err instanceof SessionExpiredError)) setLoadError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+    }
+  };
+  useEffect(() => void load(), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (notFound) {
+    return (
+      <main className="page">
+        <p>Rezept nicht gefunden</p>
+        <Link to="/" className="text-button">Zurück</Link>
+      </main>
+    );
+  }
+  if (loadError && !full) {
+    return (
+      <main className="page">
+        <p className="error" role="alert">{loadError}</p>
+        <button className="text-button" onClick={() => void load()}>Erneut versuchen</button>
+      </main>
+    );
+  }
+  if (!full) return <main className="page"><p className="empty">Lädt …</p></main>;
+
+  const steps = mergeRecipe(full).steps.filter((s) => s.status !== "removed");
+  const step = steps[index];
+  const last = index === steps.length - 1;
+  const back = () => navigate(`/rezept/${id}`);
+  const diff = step && durationDiffLabel(step.original?.duration_minutes ?? null, step.duration_minutes);
+  const otherIndex = steps.findIndex(
+    (s, i) => i !== index && timers[s.id]?.endAt != null && remainingSeconds(timers[s.id].endAt!, now) > 0,
+  );
+  const hint = step?.status === "added" ? "Von dir hinzugefügt"
+    : step?.status === "modified" ? `Deine Anpassung: ${diff ?? "Text"}` : null;
+
+  return (
+    <main className="cook">
+      <header className="cook-top">
+        <button className="cook-icon" aria-label="Schließen" onClick={back}><X size={22} /></button>
+        <span className="cook-title">{full.recipe.title}</span>
+        <button className="cook-wake" aria-pressed={held} onClick={() => setAwake((a) => !a)}>
+          <Sun size={18} aria-hidden="true" />{held ? "An" : "Aus"}
+        </button>
+      </header>
+      {step ? (
+        <>
+          <p className="cook-count">Schritt {index + 1} von {steps.length}</p>
+          <div className="cook-progress" aria-hidden="true">
+            {steps.map((s, i) => <span key={s.id} className={i <= index ? "on" : ""} />)}
+          </div>
+          {hint && <span className="cook-hint">{hint}</span>}
+          <p className="cook-text">{step.text}</p>
+          {step.duration_minutes !== null && (
+            <StepTimer
+              step={step}
+              minutes={step.duration_minutes}
+              state={timers[step.id] ?? { endAt: null, remainingWhenPaused: null }}
+              now={now}
+              onChange={(next) => {
+                setNow(Date.now());
+                setTimers((all) => ({ ...all, [step.id]: next }));
+              }}
+            />
+          )}
+        </>
+      ) : <p className="cook-text">Keine Schritte vorhanden.</p>}
+      {otherIndex >= 0 && (
+        <button className="cook-other-timer" onClick={() => setIndex(otherIndex)}>
+          Timer Schritt {otherIndex + 1}: {formatClock(remainingSeconds(timers[steps[otherIndex].id].endAt!, now))}
+        </button>
+      )}
+      <nav className="cook-nav">
+        <button className="cook-back" disabled={index === 0} onClick={() => setIndex(index - 1)}><ChevronLeft size={20} aria-hidden="true" />Zurück</button>
+        <button className="cook-next" onClick={() => (last || !step ? back() : setIndex(index + 1))}>
+          {last || !step ? "Fertig" : <>Weiter<ChevronRight size={20} aria-hidden="true" /></>}
+        </button>
+      </nav>
+    </main>
+  );
+}
