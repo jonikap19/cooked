@@ -14,6 +14,7 @@ export function unlockAudio() {
 export function playAlarm() {
   try {
     if (!context) return;
+    void context.resume(); // iOS suspends the context while backgrounded
     const start = context.currentTime;
     for (let i = 0; i < 3; i++) {
       const beep = context.createOscillator();
