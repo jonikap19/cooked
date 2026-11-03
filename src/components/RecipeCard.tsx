@@ -1,3 +1,4 @@
+import RecipeImage from "./RecipeImage";
 import { Link } from "react-router";
 import { countLabel, placeholderColor, platformLabel } from "../../shared/format";
 import type { RecipeSummary } from "../../shared/schema";
@@ -12,7 +13,9 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
   return (
     <Link to={`/rezept/${recipe.id}`} className="card">
       <div className="thumb" style={{ background: placeholderColor(recipe.id) }}>
-        Rezeptbild
+        <RecipeImage src={recipe.image_url} lazy>
+          Rezeptbild
+        </RecipeImage>
       </div>
       <div className="card-body">
         <h2>{recipe.title}</h2>

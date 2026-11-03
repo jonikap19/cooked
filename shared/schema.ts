@@ -25,14 +25,19 @@ export const ParsedRecipe = z.object({
 });
 export type ParsedRecipe = z.infer<typeof ParsedRecipe>;
 
-const HttpsUrl = z
+export const HttpsUrl = z
   .url()
-  .max(2000)
+  .max(2048)
   .refine((value) => URL.canParse(value) && new URL(value).protocol === "https:", "Nur https-Links");
 
 export const NewRecipe = ParsedRecipe.extend({
   source_url: HttpsUrl.nullable(),
   source_platform: Platform.nullable(),
+  // Only a handle from POST /api/import-link; the server moves it to the recipe on save.
+  image_url: z
+    .string()
+    .regex(/^\/api\/images\/tmp\/[0-9a-f-]{36}$/)
+    .nullish(),
 });
 export type NewRecipe = z.infer<typeof NewRecipe>;
 
@@ -49,6 +54,7 @@ export const Adjustment = z.object({
   target_type: z.enum(["ingredient", "step"]),
   target_id: z.string().nullable(),
   action: z.enum(["modify", "add", "remove"]),
+  insert_after: z.string().nullable(),
   // Strict, so a step's values are not stripped to {} by the ingredient variant.
   new_values: z
     .union([z.strictObject(IngredientValues.shape).partial(), z.strictObject(StepValues.shape).partial()])
@@ -63,14 +69,21 @@ const hasKeys = (values: object) => Object.keys(values).length > 0;
 
 // One variant per (target_type, action), so each combination validates its own value shape.
 const inputsFor = <T extends "ingredient" | "step", V extends z.ZodObject>(targetType: T, values: V) => [
-  z.object({ target_type: z.literal(targetType), action: z.literal("add"), target_id: z.null(), new_values: values }),
+  z.object({
+    target_type: z.literal(targetType),
+    action: z.literal("add"),
+    target_id: z.null(),
+    insert_after: targetId.nullish(),
+    new_values: values,
+  }),
   z.object({
     target_type: z.literal(targetType),
     action: z.literal("modify"),
     target_id: targetId,
+    insert_after: z.undefined().optional(), // only adds are positioned; z.undefined rejects instead of silently stripping
     new_values: values.partial().refine(hasKeys, "Mindestens ein Feld"),
   }),
-  z.object({ target_type: z.literal(targetType), action: z.literal("remove"), target_id: targetId }),
+  z.object({ target_type: z.literal(targetType), action: z.literal("remove"), target_id: targetId, insert_after: z.undefined().optional() }),
 ];
 
 export const AdjustmentInput = z.union([

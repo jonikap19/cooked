@@ -4,7 +4,7 @@ import { ParsedRecipe } from "../shared/schema";
 import type { AppEnv } from "./auth";
 import { invalid, readJson } from "./recipes";
 
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
 
@@ -14,7 +14,7 @@ Regeln:
 - Wenn keine Menge genannt ist (z. B. "nach Geschmack", "etwas"), setze amount auf null.
 - Einheiten (unit) kurz: g, ml, EL, TL, Stk, Prise. Ohne Einheit: leerer String.
 - Erfinde niemals Zutaten, die nicht im Text stehen.
-- Teile die Zubereitung in einzelne, klar getrennte Schritte.
+- Ein Arbeitsschritt pro Schritt: höchstens zwei kurze Sätze, nur eine Handlung. Teile zusammengesetzte Anweisungen bei "dann", "danach", "anschließend", "inzwischen" und ";" in eigene Schritte. Eine Dauer bleibt bei der Handlung, zu der sie gehört. Führe nie Schritte zusammen. Behalte Reihenfolge und Wortlaut so weit wie möglich bei.
 - duration_minutes eines Schritts nur setzen, wenn im Text eine Dauer genannt wird, sonst null.
 - total_minutes: Gesamtzeit aus dem Text; wenn nicht genannt, die Summe der Schrittdauern; wenn unbekannt, null.
 - servings: Anzahl Portionen; wenn unbekannt, 2.
@@ -51,17 +51,20 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
 
 const Body = z.object({ text: z.string().trim().min(1).max(10000) });
 
+export const tooManyRequests = { error: "Zu viele Anfragen, bitte kurz warten." };
+export const parseFailed = { error: "Rezept konnte nicht erkannt werden. Bitte Text prüfen." };
+
 export const parse = new Hono<AppEnv>();
 
 parse.post("/api/parse", async (c) => {
   const body = Body.safeParse(await readJson(c));
   if (!body.success) return c.json(invalid, 400);
   const { success } = await c.env.PARSE_LIMIT.limit({ key: c.var.userId });
-  if (!success) return c.json({ error: "Zu viele Anfragen, bitte kurz warten." }, 429);
+  if (!success) return c.json(tooManyRequests, 429);
   try {
     return c.json(await parseRecipeText(c.env.AI, body.data.text));
   } catch (e) {
     if (!(e instanceof ParseError)) throw e;
-    return c.json({ error: "Rezept konnte nicht erkannt werden. Bitte Text prüfen." }, 502);
+    return c.json(parseFailed, 502);
   }
 });

@@ -24,6 +24,20 @@ function normalizeTags(raw: string[]): string[] | null {
   return tags;
 }
 
+/** Moves the caller's tmp upload to the recipe's key; null if it is missing or not theirs. */
+async function claimTmpImage(images: R2Bucket, handle: string, recipeId: string, userId: string): Promise<string | null> {
+  const tmpKey = handle.slice("/api/images/".length);
+  const tmp = await images.get(tmpKey);
+  if (!tmp || tmp.customMetadata?.owner !== userId) {
+    await tmp?.body.cancel();
+    return null;
+  }
+  // Buffered (max 5 MB) because R2 only accepts streams of known length.
+  await images.put(recipeId, await tmp.arrayBuffer(), { httpMetadata: tmp.httpMetadata });
+  await images.delete(tmpKey);
+  return `/api/images/${recipeId}`;
+}
+
 export const readJson = (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => undefined);
 
 type RecipeRow = Omit<Recipe, "tags"> & { tags: string };
@@ -65,10 +79,15 @@ recipes.post("/api/recipes", async (c) => {
   const r = parsed.data;
   const { DB } = c.env;
   const id = crypto.randomUUID();
+  // ponytail: the claim runs before the DB batch, so a failed insert can orphan a <recipeId> object outside tmp/.
+  const imageUrl = r.image_url ? await claimTmpImage(c.env.IMAGES, r.image_url, id, c.var.userId).catch((e) => {
+    console.warn("save: image claim failed:", e instanceof Error ? e.name : "unknown"); // images are optional
+    return null;
+  }) : null;
   await DB.batch([
     DB.prepare(
-      "INSERT INTO recipes (id, user_id, title, source_url, source_platform, servings, total_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ).bind(id, c.var.userId, r.title, r.source_url, r.source_platform ?? detectPlatform(r.source_url), r.servings, r.total_minutes),
+      "INSERT INTO recipes (id, user_id, title, source_url, source_platform, image_url, servings, total_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(id, c.var.userId, r.title, r.source_url, r.source_platform ?? detectPlatform(r.source_url), imageUrl, r.servings, r.total_minutes),
     ...r.ingredients.map((i, pos) =>
       DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)").bind(
         crypto.randomUUID(), id, pos, i.name, i.amount, i.unit,
@@ -93,7 +112,7 @@ recipes.get("/api/recipes/:id", async (c) => {
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare(
-      "SELECT id, target_type, target_id, action, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, id",
+      "SELECT id, target_type, target_id, action, insert_after, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid",
     ).bind(id),
     DB.prepare("SELECT body FROM notes WHERE recipe_id = ?").bind(id),
   ]);
@@ -121,14 +140,15 @@ recipes.patch("/api/recipes/:id", async (c) => {
 });
 
 recipes.delete("/api/recipes/:id", async (c) => {
-  const res = await c.env.DB.prepare("DELETE FROM recipes WHERE id = ? AND user_id = ?")
-    .bind(c.req.param("id"), c.var.userId)
-    .run();
-  return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
+  const id = c.req.param("id");
+  const res = await c.env.DB.prepare("DELETE FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).run();
+  if (!res.meta.changes) return c.json(notFound, 404);
+  await c.env.IMAGES.delete(id);
+  return c.body(null, 204);
 });
 
 const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
-const ADJ_COLS = "id, target_type, target_id, action, new_values, created_at, updated_at";
+const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, created_at, updated_at";
 type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
 const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });
 
@@ -145,15 +165,20 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
 
   const aid = crypto.randomUUID();
   const newValues = "new_values" in input ? JSON.stringify(input.new_values) : null;
+  // table name comes from the validated enum, never from input
+  const table = input.target_type === "ingredient" ? "ingredients" : "steps";
   if (input.action === "add") {
-    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values) VALUES (?, ?, ?, NULL, 'add', ?)")
-      .bind(aid, rid, input.target_type, newValues)
+    const anchor = input.insert_after ?? null;
+    if (anchor && !(await DB.prepare(`SELECT 1 AS x FROM ${table} WHERE id = ? AND recipe_id = ?`).bind(anchor, rid).first())) {
+      return c.json(notFound, 404);
+    }
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values) VALUES (?, ?, ?, NULL, 'add', ?, ?)")
+      .bind(aid, rid, input.target_type, anchor, newValues)
       .run();
     return c.json(await readAdjustment(c, rid, aid), 201);
   }
 
-  // target must belong to this recipe (table name comes from the validated enum, never from input)
-  const table = input.target_type === "ingredient" ? "ingredients" : "steps";
+  // target must belong to this recipe
   const original = await DB.prepare(`SELECT * FROM ${table} WHERE id = ? AND recipe_id = ?`)
     .bind(input.target_id, rid)
     .first<Record<string, unknown>>();

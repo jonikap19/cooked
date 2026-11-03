@@ -1,9 +1,10 @@
-import type { Adjustment, AdjustmentInput, NewRecipe, ParsedRecipe, RecipeFull, RecipeSummary } from "../shared/schema";
+import type { Adjustment, AdjustmentInput, NewRecipe, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public data?: { caption?: string | null },
   ) {
     super(message);
   }
@@ -38,8 +39,8 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (response.status === 401) expire();
   if (response.status === 204) return undefined as T;
   if (!response.headers.get("content-type")?.includes("application/json")) expire();
-  const body = (await response.json()) as { error?: string };
-  if (!response.ok) throw new ApiError(response.status, body.error ?? "Etwas ist schiefgelaufen");
+  const body = (await response.json()) as { error?: string; caption?: string | null };
+  if (!response.ok) throw new ApiError(response.status, body.error ?? "Etwas ist schiefgelaufen", body);
   return body as T;
 }
 
@@ -60,4 +61,13 @@ export const api = {
     request<void>(`/api/recipes/${id}/adjustments/${adjustmentId}`, send("DELETE")),
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),
+  importLink: (url: string) =>
+    request<{
+      recipe: ParsedRecipe;
+      source_url: string;
+      source_platform: NewRecipe["source_platform"];
+      image_url: string | null;
+      caption: string | null;
+    }>("/api/import-link", send("POST", { url })),
+  splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };
