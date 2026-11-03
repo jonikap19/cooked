@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { sessionStore } from "./api";
 import AddRecipe from "./pages/AddRecipe";
 import Home from "./pages/Home";
+import RecipeDetail from "./pages/RecipeDetail";
 
 function SessionExpired() {
   const expired = useSyncExternalStore(sessionStore.subscribe, sessionStore.isExpired);
@@ -25,7 +26,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/neu" element={<AddRecipe />} />
-        <Route path="/rezept/:id" element={<Soon title="Rezept" />} />
+        <Route path="/rezept/:id" element={<RecipeDetail />} />
         <Route path="/rezept/:id/kochen" element={<Soon title="Kochen" />} />
       </Routes>
     </BrowserRouter>
