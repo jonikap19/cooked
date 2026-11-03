@@ -117,9 +117,9 @@ function renderRecipe(recipe: Json): string | null {
   return blocks.filter(Boolean).join("\n\n");
 }
 
+// A loop, not recursion: a hostile page can nest `image` deep enough to overflow the stack.
 function jsonLdImage(v: unknown): string | null {
-  if (Array.isArray(v)) return jsonLdImage(v[0]);
-  if (isObject(v)) return jsonLdImage(v.url);
+  while (Array.isArray(v) || isObject(v)) v = Array.isArray(v) ? v[0] : v.url;
   return typeof v === "string" ? decodeEntities(v).trim() : null;
 }
 

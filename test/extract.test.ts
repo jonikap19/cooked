@@ -132,4 +132,10 @@ describe("extractFromHtml: hostile pages", () => {
     const html = ld({ "@type": "Recipe", name: "X", recipeInstructions: nested });
     expect(extractFromHtml("web", html).text).toBeNull();
   });
+  it("finds an image nested absurdly deep instead of throwing", () => {
+    let image: unknown = { url: "https://example.com/tief.jpg" };
+    for (let i = 0; i < 20_000; i++) image = [image];
+    const html = ld({ "@type": "Recipe", name: "X", recipeInstructions: "Rühren", image });
+    expect(extractFromHtml("web", html).imageUrl).toBe("https://example.com/tief.jpg");
+  });
 });
