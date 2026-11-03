@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { jwtVerify, type JWTVerifyGetKey } from "jose";
 import type { Env } from "./index";
 
-export type AppEnv ={ Bindings: Env; Variables: { userId: string } };
+export type AppEnv = { Bindings: Env; Variables: { userId: string } };
 
 const unauthenticated = { error: "Nicht angemeldet" };
 

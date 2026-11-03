@@ -106,3 +106,5 @@ export const RecipeFull = z.object({
   note: z.string().max(5000),
 });
 export type RecipeFull = z.infer<typeof RecipeFull>;
+
+export const NoteBody = z.object({ text: z.string().max(5000) });

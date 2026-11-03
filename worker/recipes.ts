@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { detectPlatform } from "../shared/format";
-import { NewRecipe, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
+import { AdjustmentInput, IngredientValues, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
 import type { AppEnv } from "./auth";
 
 export const recipes = new Hono<AppEnv>();
@@ -125,4 +125,110 @@ recipes.delete("/api/recipes/:id", async (c) => {
     .bind(c.req.param("id"), c.var.userId)
     .run();
   return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
+});
+
+const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+const ADJ_COLS = "id, target_type, target_id, action, new_values, created_at, updated_at";
+type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
+const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });
+
+const ownsRecipe = async (c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string) =>
+  !!(await c.env.DB.prepare("SELECT 1 AS x FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first());
+
+recipes.post("/api/recipes/:id/adjustments", async (c) => {
+  const parsed = AdjustmentInput.safeParse(await readJson(c));
+  if (!parsed.success) return c.json(invalid, 400);
+  const input = parsed.data;
+  const { DB } = c.env;
+  const rid = c.req.param("id");
+  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+
+  const aid = crypto.randomUUID();
+  const newValues = "new_values" in input ? JSON.stringify(input.new_values) : null;
+  if (input.action === "add") {
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values) VALUES (?, ?, ?, NULL, 'add', ?)")
+      .bind(aid, rid, input.target_type, newValues)
+      .run();
+    return c.json(await readAdjustment(c, rid, aid), 201);
+  }
+
+  // target must belong to this recipe (table name comes from the validated enum, never from input)
+  const table = input.target_type === "ingredient" ? "ingredients" : "steps";
+  const original = await DB.prepare(`SELECT * FROM ${table} WHERE id = ? AND recipe_id = ?`)
+    .bind(input.target_id, rid)
+    .first<Record<string, unknown>>();
+  if (!original) return c.json(notFound, 404);
+
+  const existing = await DB.prepare(
+    `SELECT ${ADJ_COLS} FROM adjustments WHERE recipe_id = ? AND target_type = ? AND target_id = ? AND action = ?`,
+  )
+    .bind(rid, input.target_type, input.target_id, input.action)
+    .first<AdjRow>();
+
+  if (input.action === "remove") {
+    if (existing) return c.json(toAdjustment(existing), 201);
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action) VALUES (?, ?, ?, ?, 'remove')")
+      .bind(aid, rid, input.target_type, input.target_id)
+      .run();
+    return c.json(await readAdjustment(c, rid, aid), 201);
+  }
+
+  const merged: Record<string, unknown> = { ...(existing?.new_values ? JSON.parse(existing.new_values) : {}), ...input.new_values };
+  // back at the original on every key -> the adjustment is gone
+  if (Object.entries(merged).every(([k, v]) => v === original[k])) {
+    if (existing) await DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(existing.id, rid).run();
+    return c.body(null, 204);
+  }
+  if (existing) {
+    await DB.prepare(`UPDATE adjustments SET new_values = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
+      .bind(JSON.stringify(merged), existing.id, rid)
+      .run();
+    return c.json(await readAdjustment(c, rid, existing.id), 201);
+  }
+  await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values) VALUES (?, ?, ?, ?, 'modify', ?)")
+    .bind(aid, rid, input.target_type, input.target_id, JSON.stringify(merged))
+    .run();
+  return c.json(await readAdjustment(c, rid, aid), 201);
+});
+
+async function readAdjustment(c: { env: AppEnv["Bindings"] }, rid: string, aid: string) {
+  const row = await c.env.DB.prepare(`SELECT ${ADJ_COLS} FROM adjustments WHERE id = ? AND recipe_id = ?`).bind(aid, rid).first<AdjRow>();
+  return toAdjustment(row!);
+}
+
+recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
+  const rid = c.req.param("id");
+  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  const row = await c.env.DB.prepare(`SELECT ${ADJ_COLS} FROM adjustments WHERE id = ? AND recipe_id = ?`)
+    .bind(c.req.param("adjId"), rid)
+    .first<AdjRow>();
+  if (!row) return c.json(notFound, 404);
+  if (row.action !== "add") return c.json(invalid, 400);
+  const schema = z.object({ new_values: row.target_type === "ingredient" ? IngredientValues : StepValues });
+  const parsed = schema.safeParse(await readJson(c));
+  if (!parsed.success) return c.json(invalid, 400);
+  await c.env.DB.prepare(`UPDATE adjustments SET new_values = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
+    .bind(JSON.stringify(parsed.data.new_values), row.id, rid)
+    .run();
+  return c.json(await readAdjustment(c, rid, row.id), 200);
+});
+
+recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {
+  const rid = c.req.param("id");
+  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  const res = await c.env.DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(c.req.param("adjId"), rid).run();
+  return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
+});
+
+recipes.put("/api/recipes/:id/note", async (c) => {
+  const parsed = NoteBody.safeParse(await readJson(c));
+  if (!parsed.success) return c.json(invalid, 400);
+  const rid = c.req.param("id");
+  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  const text = parsed.data.text.trim();
+  await (text
+    ? c.env.DB.prepare("INSERT INTO notes (recipe_id, body) VALUES (?, ?) ON CONFLICT(recipe_id) DO UPDATE SET body = excluded.body").bind(rid, text)
+    : c.env.DB.prepare("DELETE FROM notes WHERE recipe_id = ?").bind(rid)
+  ).run();
+  return c.body(null, 204);
 });
