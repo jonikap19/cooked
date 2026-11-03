@@ -232,9 +232,12 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: 100%;
   max-width: 448px;
   min-height: 56px;
   margin: 0 auto;
+  border: 0;
+  cursor: pointer;
   border-radius: 16px;
   background: var(--primary);
   color: var(--surface);
@@ -265,4 +268,196 @@ a {
   color: var(--adj-text);
   font-weight: 700;
   cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primary-button.inline {
+  margin-top: 16px;
+  box-shadow: none;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.add-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.add-header h1 {
+  font-size: 1.75rem;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 20px;
+  background: var(--tile);
+  border-radius: 16px;
+}
+
+.segmented button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.segmented button.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.field-label {
+  display: block;
+  margin: 20px 0 8px;
+  font-weight: 700;
+}
+
+.field-label.meta {
+  font-weight: 400;
+}
+
+.field {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  outline: 0;
+  resize: vertical;
+}
+
+.field:focus {
+  border-color: var(--primary);
+  border-width: 2px;
+  padding: 13px 15px;
+}
+
+.add-chips {
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.error {
+  margin-top: 16px;
+  color: var(--adj-text);
+}
+
+.preview {
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--primary);
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+}
+
+.preview h2 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: var(--tile);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stat strong {
+  color: var(--text);
+  font-size: 1.25rem;
+}
+
+.preview-ingredients {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.preview-ingredients li {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 12px;
+}
+
+.small {
+  font-size: 0.875rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.875rem;
 }
