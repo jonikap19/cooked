@@ -36,7 +36,8 @@ describe("adjustments api", () => {
   it("modify upserts, merges keys, and returns 204 when back at original", async () => {
     const a = user();
     const id = await create(a);
-    const nudeln = (await get(a, id)).ingredients[0].id;
+    const before = await get(a, id);
+    const nudeln = before.ingredients[0].id;
     const r1 = await adj(id, modIng(nudeln, { amount: 150 }), a);
     expect(r1.status).toBe(201);
     expect(((await r1.json()) as any).new_values).toEqual({ amount: 150 });
@@ -52,6 +53,9 @@ describe("adjustments api", () => {
     // null amount equals null original
     const salz = (await get(a, id)).ingredients[1].id;
     expect((await adj(id, modIng(salz, { amount: null }), a)).status).toBe(204);
+    const after = await get(a, id);
+    expect(after.ingredients).toEqual(before.ingredients);
+    expect(after.steps).toEqual(before.steps);
   });
 
   it("rejects foreign, cross-recipe and wrong-type targets with 404", async () => {
@@ -75,6 +79,9 @@ describe("adjustments api", () => {
     const id = await create(a);
     const before = await get(a, id);
     const rm = { target_type: "ingredient", action: "remove", target_id: before.ingredients[0].id };
+    const modId = ((await (await adj(id, modIng(before.ingredients[1].id, { unit: "EL" }), a)).json()) as any).id;
+    expect((await call(a, `/api/recipes/${id}/adjustments/${modId}`, "PATCH", { new_values: { name: "x", amount: 1, unit: "" } })).status).toBe(400);
+    await call(a, `/api/recipes/${id}/adjustments/${modId}`, "DELETE");
     const r1 = (await (await adj(id, rm, a)).json()) as any;
     const r2 = await adj(id, rm, a);
     expect(r2.status).toBe(201);
