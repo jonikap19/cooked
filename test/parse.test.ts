@@ -45,6 +45,12 @@ describe("parseRecipeText", () => {
     expect(user.content).toBe("SECRET-TEXT");
     expect(args.response_format.json_schema.$schema).toBeUndefined();
   });
+  it("asks for enough output tokens", async () => {
+    let args: any;
+    const ai = fakeAi((async (_m: string, a: unknown) => ((args = a), { response: recipe })) as never);
+    await parseRecipeText(ai, "x");
+    expect(args.max_tokens).toBeGreaterThanOrEqual(2048);
+  });
 });
 
 describe("POST /api/parse", () => {

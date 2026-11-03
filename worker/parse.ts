@@ -32,12 +32,13 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: text },
       ],
+      max_tokens: 4096,
       response_format: { type: "json_schema", json_schema: jsonSchema },
     } as never)) as { response?: unknown };
     raw = out.response;
     if (typeof raw === "string") raw = JSON.parse(raw);
   } catch (e) {
-    console.warn("parse: model call failed:", e instanceof Error ? e.message : String(e));
+    console.warn("parse: model call failed:", e instanceof Error ? e.name : "unknown");
     throw new ParseError();
   }
   const parsed = ParsedRecipe.safeParse(raw);
