@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { accessAuth, sameOrigin, securityHeaders } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
 export type Env = {
@@ -13,7 +14,11 @@ export type Env = {
 export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   const app = new Hono<{ Bindings: Env; Variables: { userId: string } }>();
 
+  app.use("/api/*", securityHeaders);
   app.get("/api/health", (c) => c.json({ ok: true }));
+  app.use("/api/*", sameOrigin);
+  app.use("/api/*", accessAuth(getJwks));
+  app.get("/api/me", (c) => c.json({ userId: c.var.userId }));
 
   return app;
 }
