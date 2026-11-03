@@ -46,6 +46,7 @@ importLink.post("/api/import-link", async (c) => {
   const platform = detectPlatform(url) ?? "web";
   let html: string;
   try {
+    // ponytail: UTF-8 only; read the charset from Content-Type if a non-UTF-8 site matters
     html = new TextDecoder().decode((await safeFetch(url)).body);
   } catch (e) {
     if (!(e instanceof FetchRejected)) throw e;
