@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+      # ponytail: guards let this workflow land before the app code exists; drop them once main has package.json.
+      - if: hashFiles('package-lock.json') != ''
+        run: npm ci
+      - if: hashFiles('package-lock.json') != ''
+        run: npm test
+      - if: hashFiles('package-lock.json') != ''
+        run: npm run build
