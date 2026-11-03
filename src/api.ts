@@ -1,4 +1,4 @@
-import type { Adjustment, AdjustmentInput, NewRecipe, ParsedRecipe, RecipeFull, RecipeSummary } from "../shared/schema";
+import type { Adjustment, AdjustmentInput, NewRecipe, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
@@ -60,4 +60,5 @@ export const api = {
     request<void>(`/api/recipes/${id}/adjustments/${adjustmentId}`, send("DELETE")),
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),
+  splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };
