@@ -6,21 +6,22 @@
 
 **Architecture:** One Cloudflare Worker serves a Vite/React SPA as Static Assets and a Hono JSON API under `/api/*` (`assets.run_worker_first: ["/api/*"]`). Data lives in D1; originals are insert-only, adjustments are separate rows, and the client merges them via one shared pure function. Login is Cloudflare Access (email one-time PIN) in front of the whole Worker; the Worker verifies the Access JWT itself (Static Assets Workers don't receive `ctx.access`).
 
-**Tech Stack:** TypeScript, Vite, React 18/19, React Router (library mode), `@cloudflare/vite-plugin`, Wrangler, Hono, D1, Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON mode), `jose` (JWT verify), `zod` v4 (validation + JSON schema for AI), Vitest + `@cloudflare/vitest-pool-workers`, `@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/dm-sans`.
+**Tech Stack:** TypeScript, Vite, React 18/19, React Router (library mode), `@cloudflare/vite-plugin`, Wrangler, Hono, D1, Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON mode), `jose` (JWT verify), `zod` v4 (validation + JSON schema for AI), Vitest + `@cloudflare/vitest-pool-workers`, `@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/dm-sans`, `lucide-react` (icons; the designs use Lucide-style line icons).
 
-**Spec:** `docs/spec.md`. Repo rules: `rules.md` (clean + secure code, git workflow). Work on branch `feat/kochbuch-mvp`.
+**Spec:** `docs/spec.md`. Designs: `screenshots/*.pdf` (local only, git-ignored — the "Design Reference" section below is the committed summary; open the PDFs when building a screen). Repo rules: `rules.md` (clean + secure code, git workflow). Work on branch `feat/kochbuch-mvp`.
 
 ## Global Constraints
 
 - All UI text German; use these strings verbatim: "Mein Kochbuch", "Alle", "Angepasst", "Unter 30 Min", "X Anpassungen", "Rezept hinzufügen", "Link einfügen", "Text einfügen", "Rezept erkannt", "Bitte kurz prüfen, Mengen aus dem Video können fehlen", "Ins Kochbuch speichern", "Original", "X eigene Anpassungen", "Original zeigen", "Zutaten", "Schritte", "Geändert · Original 120 g" (pattern), "Von dir hinzugefügt", "Zutat hinzufügen", "Schritt hinzufügen", "Notiz für mich", "Kochen starten", "Schritt 3 von 6" (pattern), "Deine Anpassung: +2 Min" (pattern), "Original 6 Min · bei dir 8 Min" (pattern), "Zurück", "Weiter".
-- Singular forms: "1 Anpassung", "1 eigene Anpassung".
-- Colors (CSS custom properties in `src/styles.css`): `--bg #FAFAF7`, `--text #1A1A17`, `--primary #1F4D3A`, `--adj-text #A33F0C`, `--adj-bg #FDEBDD`. Every adjustment marker uses the two orange tokens, nothing else does.
+- Additional strings from the designs: "{n} Rezepte · {m} angepasst", "Rezepte oder Zutaten suchen", "Bald", "Caption oder Rezepttext", "Quelle", "Instagram", "YouTube", "Web", "Link zum Original (optional)", "Rezept erkennen", "+ {n} weitere Zutaten", "Quelle: {Plattform}", "Minuten", "Portionen", "{n} Min gesamt", "Zuletzt geändert am {28. Okt.}", "Mengen werden umgerechnet", "Zutaten · {n}", "Schritte · {n}", "Von dir entfernt", "Wiederherstellen", "Timer starten", "An"/"Aus" (wake-lock indicator), "Rezeptbild" (image placeholder label).
+- Singular forms: "1 Anpassung", "1 eigene Anpassung", "1 Rezept".
+- Colors (CSS custom properties in `src/styles.css`): `--bg #FAFAF7`, `--text #1A1A17`, `--primary #1F4D3A`, `--adj-text #A33F0C`, `--adj-bg #FDEBDD` (from spec), plus neutrals read off the designs: `--surface #FFFFFF`, `--muted #6B6B63`, `--border #E6E4DC`, `--tile #F3F2ED`, `--primary-soft #E4ECE7`, `--cook-panel rgba(255,255,255,0.08)`. Every adjustment marker uses the two orange tokens, nothing else does — exception: the "Angepasst" filter chip is orange-styled (it filters adjustments).
 - Fonts: "Bricolage Grotesque" headings, "DM Sans" body, self-hosted via `@fontsource-variable/*`. No Google Fonts CDN (GDPR, CSP).
 - Rounded cards, every interactive element ≥ 44×44 px, no emojis anywhere (UI, AI output is shown as-is but prompt asks for none).
 - Mobile-first: design at 375 px width, no horizontal scroll.
 - `ingredients` and `steps` rows are never UPDATEd or DELETEd except via cascade when the whole recipe is deleted.
 - Every DB query touching recipe data is scoped by `user_id` (directly or via join on `recipes.user_id`). A recipe/adjustment/target not owned by the caller → `404`, never `403` (don't leak existence).
-- Only "Text einfügen" is functional; "Link einfügen" tab is visible but shows "Kommt bald" and is disabled.
+- Only "Text einfügen" is functional; "Link einfügen" tab is visible with a "Bald" pill and is disabled.
 - Never render user or AI content with `dangerouslySetInnerHTML`. `source_url`/`image_url` must be `https:` URLs (validated server-side).
 - Input limits (zod): pasted text ≤ 10 000 chars; title ≤ 200; ingredient name ≤ 200; unit ≤ 30; step text ≤ 2 000; amount 0–100 000 or null; duration 1–1 440 min or null; servings 1–100; total_minutes 1–2 880 or null; ≤ 100 ingredients, ≤ 100 steps; note ≤ 5 000; ≤ 10 tags of ≤ 30 chars.
 - Commits: author `180111101+jonikap19@users.noreply.github.com` (repo-local config, already set). Message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -28,11 +29,24 @@
 
 ## Spec deviations (deliberate, add to CLAUDE.md working notes)
 
-- `recipes` gets two extra columns the spec needs but the data model omits: `total_minutes` (cards, preview, "Unter 30 Min") and `tags` (JSON array text, for the tag chips). Tags are edited on the detail screen.
+- `recipes` gets two extra columns the spec needs but the data model omits: `total_minutes` (cards, preview, "Unter 30 Min") and `tags` (JSON array text, for the tag chips). Tags are shown in the detail meta line and edited from there (not in the designs; tap the tags → small dialog).
+- `adjustments` gets `updated_at` (for "Zuletzt geändert am …", since a modify upsert changes an existing row).
+- `source_platform` is chosen by the user ("Quelle" chips on the add screen, per design), preselected from the link via `detectPlatform`.
 - `user_id` = the lower-cased email from the Access JWT. No users table.
 - No service worker: manifest alone makes it installable on Android/iOS; offline mode is out of scope.
-- Images: text import has no image, so the preview has an optional "Bild-URL" field; cards show a green placeholder block when empty.
-- Added: delete recipe (needed to clean up bad imports).
+- Images: text import has no image and the design has no image field, so `image_url` stays null for now; every image slot shows the "Rezeptbild" placeholder (colored block). Image import comes with link import later.
+- Remove / reset of a single item lives in the edit sheet (designs show only the pencil per row).
+- Added: delete recipe (needed to clean up bad imports), as a button in the edit-free area at the bottom of the detail screen.
+
+## Design Reference (summary of `screenshots/`)
+
+Shared: headings Bricolage Grotesque bold, body DM Sans; cards white, radius ~16 px, 1 px `--border`; screen gutter 16 px; primary buttons full-width, `--primary` fill, white text, radius ~16 px, height ~56 px, sticky at the bottom with a soft fade above; icons from `lucide-react`.
+
+1. **Mein Kochbuch:** large heading "Mein Kochbuch", subline "{n} Rezepte · {m} angepasst" in `--muted`; top-right round avatar (`--primary-soft` bg, `--primary` initials from the email, e.g. "JK"). Search field with search icon, placeholder "Rezepte oder Zutaten suchen". Horizontally scrolling chip row: active chip `--primary` fill/white; "Angepasst" chip orange (`--adj-bg`/`--adj-text`, orange border); others white with border. Recipe card = row: square rounded image/placeholder left (~96 px; placeholder colored block with "Rezeptbild" bottom-left), right: bold title (2 lines), meta "25 Min · 2 Portionen · Instagram" muted, orange pill badge "5 Anpassungen". Sticky button "+ Rezept hinzufügen".
+2. **Rezept hinzufügen:** back chevron + heading. Segmented control on `--tile`: "Link einfügen" + grey "Bald" pill (disabled) | "Text einfügen" (active, white). Label "Caption oder Rezepttext" + textarea (green border when focused). Label "Quelle" + three chips Instagram / YouTube / Web (single-select, active green). Muted label "Link zum Original (optional)" + input. Preview card: check icon in `--primary-soft` circle + green "Rezept erkannt"; bold title; four `--tile` stat tiles (number large, label small): Zutaten, Schritte, Minuten, Portionen; first 3 ingredients as two columns (bold amount+unit | name), then "+ {n} weitere Zutaten" muted; "Quelle: Instagram" muted; hint "Bitte kurz prüfen, Mengen aus dem Video können fehlen."; sticky "Ins Kochbuch speichern".
+3. **Rezept-Detail · Zutaten:** hero image/placeholder (~280 px) with round back button (left) and pill "Original" + external-link icon (right); content sheet overlaps hero with rounded top corners. Title; meta "Instagram · 27 Min gesamt · Pasta, Vegetarisch". Orange banner (`--adj-bg`): bold "5 eigene Anpassungen" + small "Zuletzt geändert am 28. Okt." left, outlined orange button "Original zeigen" right. Card "Portionen" / "Mengen werden umgerechnet" with − (`--primary-soft`) number + (`--primary` fill) buttons. Tabs "Zutaten · 8" | "Schritte · 5", active tab green text + green underline (counts include added and removed rows). Ingredient row card: bold amount+unit column ("500 g", "2 Zehen", "1 Prise"), name, pencil right. Modified: `--adj-bg` row, amount in `--adj-text`, subline "Geändert · Original 120 g". Added: same orange row, subline "Von dir hinzugefügt". Removed: transparent row, dashed orange border, amount + name struck through, subline "Von dir entfernt", right "Wiederherstellen" with undo icon in `--adj-text`. "+ Zutat hinzufügen" = dashed `--border` card, green text. "Notiz für mich" heading + textarea. Sticky "Kochen starten" with play icon.
+4. **Rezept-Detail · Schritte (3b):** same header (shown scrolled). Step card: number in a circle (`--primary-soft` bg, green number; modified/added: `--adj-text` fill, white number), step text, duration "3 Min" muted below. Modified: orange row, duration bold orange "8 Min", subline "Geändert · Original 6 Min". Added: orange row, "Von dir hinzugefügt". "+ Schritt hinzufügen" like ingredients.
+5. **Kochmodus:** full-screen `--primary`. Top bar: X close (left), recipe title muted-white center (1 line, ellipsis), sun icon + "An" (wake lock state) right. "Schritt 2 von 5" then segmented progress bar (one segment per step; done + current white, rest white/30%). Orange pill "Deine Anpassung: +2 Min". Step text very large (~2rem, Bricolage, white). Timer panel (`--cook-panel`, rounded, light border): circular progress ring with "8:00" left; right "Original 6 Min · bei dir 8 Min" + white pill button "Timer starten" with play icon (green text). Bottom row: "Zurück" outlined white/30% with chevron, "Weiter" filled `--bg` with green text and chevron.
 
 ## Review Focus
 
@@ -93,21 +107,21 @@ README.md                 setup + deploy steps
   - `IngredientValues = { name: string; amount: number | null; unit: string }`
   - `StepValues = { text: string; duration_minutes: number | null }`
   - `ParsedRecipe = { title: string; servings: number; total_minutes: number | null; ingredients: IngredientValues[]; steps: StepValues[] }` (steps min 1)
-  - `NewRecipe = ParsedRecipe & { source_url: string | null; image_url: string | null }` (https-only)
+  - `NewRecipe = ParsedRecipe & { source_url: string | null; source_platform: "instagram" | "youtube" | "web" | null }` (`source_url` https-only; `image_url` is not accepted yet, stored null)
   - `Ingredient = IngredientValues & { id: string; position: number }`, `Step = StepValues & { id: string; position: number }`
-  - `Adjustment = { id: string; target_type: "ingredient" | "step"; target_id: string | null; action: "modify" | "add" | "remove"; new_values: Partial<IngredientValues> | Partial<StepValues> | null; created_at: string }`
+  - `Adjustment = { id: string; target_type: "ingredient" | "step"; target_id: string | null; action: "modify" | "add" | "remove"; new_values: Partial<IngredientValues> | Partial<StepValues> | null; created_at: string; updated_at: string }`
   - `AdjustmentInput` = discriminated union validating: `add` → full values, `target_id` null; `modify` → partial values (≥1 key), `target_id` set; `remove` → no values, `target_id` set.
   - `Recipe = { id; title; source_url; source_platform: "instagram" | "youtube" | "web" | null; image_url; servings; total_minutes; tags: string[]; created_at }`
   - `RecipeSummary = Recipe & { adjustment_count: number; ingredient_names: string[] }`
   - `RecipeFull = { recipe: Recipe; ingredients: Ingredient[]; steps: Step[]; adjustments: Adjustment[]; note: string }`
 - Produces (`shared/merge.ts`): `type Merged<T> = T & { status: "original" | "modified" | "added" | "removed"; original: T | null; adjustmentIds: string[] }`; `mergeRecipe(full: RecipeFull): { ingredients: Merged<Ingredient>[]; steps: Merged<Step>[]; adjustmentCount: number }`. Added items get `id` = adjustment id and come after originals ordered by `created_at`. A removed item that is also modified shows modified values with status `removed`; `adjustmentIds` lists all its adjustments.
-- Produces (`shared/format.ts`): `scaleAmount(amount: number | null, base: number, target: number): number | null`; `formatAmount(amount: number | null): string` (German comma, ≤ 2 decimals, trailing zeros trimmed, null → `""`); `detectPlatform(url: string | null): Recipe["source_platform"]`; `countLabel(n: number, singular: string, plural: string): string` → `"1 Anpassung"` / `"3 Anpassungen"`.
+- Produces (`shared/format.ts`): `scaleAmount(amount: number | null, base: number, target: number): number | null`; `formatAmount(amount: number | null): string` (German comma, ≤ 2 decimals, trailing zeros trimmed, null → `""`); `detectPlatform(url: string | null): Recipe["source_platform"]`; `countLabel(n: number, singular: string, plural: string): string` → `"1 Anpassung"` / `"3 Anpassungen"`; `formatQuantity(amount: number | null, unit: string): string` → `"500 g"`, `"2 Zehen"`, `"10"`, null amount → unit alone or `""`; `formatShortDate(iso: string): string` → `"28. Okt."` (`Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short" })`); `initials(email: string): string` → `"jonathan.kapfenstein@x.de"` → `"JK"`, `"anna@x.de"` → `"AN"` (split local part on `.`/`_`/`-`); `placeholderColor(id: string): string` → stable pick from `["#E5D5BA", "#EBC8A8", "#D2DBC6", "#EBDCCB"]` by simple string hash.
 
 - [ ] **Step 1: Write failing tests.**
   - `merge.test.ts`: no adjustments → all `original`, count 0; modify `{amount: 150}` on a 120 g item → status `modified`, amount 150, `original.amount` 120; remove → status `removed`; add → appended with status `added`, `original` null; two adds sorted by `created_at`; count = adjustments.length; modify + remove on same item → `removed` with modified values and 2 ids.
-  - `format.test.ts`: `scaleAmount(200, 2, 4) === 400`; `scaleAmount(null, 2, 4) === null`; `formatAmount(1.5) === "1,5"`; `formatAmount(1/3) === "0,33"`; `formatAmount(2) === "2"`; `formatAmount(null) === ""`; `detectPlatform("https://www.instagram.com/p/x") === "instagram"`; `youtu.be` and `m.youtube.com` → `"youtube"`; other → `"web"`; null → null; `countLabel(1, "Anpassung", "Anpassungen") === "1 Anpassung"`.
+  - `format.test.ts`: `scaleAmount(200, 2, 4) === 400`; `scaleAmount(null, 2, 4) === null`; `formatAmount(1.5) === "1,5"`; `formatAmount(1/3) === "0,33"`; `formatAmount(2) === "2"`; `formatAmount(null) === ""`; `detectPlatform("https://www.instagram.com/p/x") === "instagram"`; `youtu.be` and `m.youtube.com` → `"youtube"`; other → `"web"`; null → null; `countLabel(1, "Anpassung", "Anpassungen") === "1 Anpassung"`; `formatQuantity(2, "Zehen") === "2 Zehen"`; `formatQuantity(10, "") === "10"`; `formatQuantity(null, "Prise") === "Prise"`; `formatQuantity(null, "") === ""`; `formatShortDate("2026-10-28T10:00:00Z") === "28. Okt."`; `initials("jonathan.kapfenstein@outlook.de") === "JK"`; `initials("anna@x.de") === "AN"`; `placeholderColor("abc") === placeholderColor("abc")`.
 - [ ] **Step 2:** `npm test` → FAIL.
-- [ ] **Step 3:** Write `migrations/0001_init.sql`: tables `recipes` (with `user_id TEXT NOT NULL`, `total_minutes INTEGER`, `tags TEXT NOT NULL DEFAULT '[]'`, `created_at TEXT NOT NULL DEFAULT (datetime('now'))`), `ingredients`, `steps`, `adjustments` (`new_values TEXT` JSON), `notes` (`recipe_id` PK). All child FKs `REFERENCES recipes(id) ON DELETE CASCADE`. CHECK constraints on `target_type`/`action`. Indexes: `recipes(user_id)`, `ingredients(recipe_id)`, `steps(recipe_id)`, `adjustments(recipe_id)`. Implement the three shared modules.
+- [ ] **Step 3:** Write `migrations/0001_init.sql`: tables `recipes` (with `user_id TEXT NOT NULL`, `total_minutes INTEGER`, `tags TEXT NOT NULL DEFAULT '[]'`, `created_at TEXT NOT NULL DEFAULT (datetime('now'))`), `ingredients`, `steps`, `adjustments` (`new_values TEXT` JSON, `created_at` + `updated_at` default now), `notes` (`recipe_id` PK). All child FKs `REFERENCES recipes(id) ON DELETE CASCADE`. CHECK constraints on `target_type`/`action`. Indexes: `recipes(user_id)`, `ingredients(recipe_id)`, `steps(recipe_id)`, `adjustments(recipe_id)`. Implement the three shared modules.
 - [ ] **Step 4:** `npm test` → PASS. `npm run db:migrate:local` → applies cleanly.
 - [ ] **Step 5: Commit** `feat: add schema, shared types and merge logic`.
 
@@ -138,13 +152,13 @@ README.md                 setup + deploy steps
 - Consumes: schemas (Task 2), `userId` (Task 3), `detectPlatform`.
 - Produces:
   - `GET /api/recipes` → `RecipeSummary[]`, newest first (`ingredient_names` = original names + names from `add` adjustments).
-  - `POST /api/recipes` body `NewRecipe` → `201 { id }`; one `env.DB.batch([...])` inserting recipe, ingredients and steps with `position` = array index; `source_platform` from `detectPlatform(source_url)`.
+  - `POST /api/recipes` body `NewRecipe` → `201 { id }`; one `env.DB.batch([...])` inserting recipe, ingredients and steps with `position` = array index; `source_platform` from the body, falling back to `detectPlatform(source_url)` when null.
   - `GET /api/recipes/:id` → `RecipeFull` (adjustments with parsed `new_values`, note `""` if none).
   - `PATCH /api/recipes/:id` body `{ tags: string[] }` → `204` (trimmed, deduplicated, case-insensitive).
   - `DELETE /api/recipes/:id` → `204`.
   - Invalid body → `400 { error: string }` (German message, no zod internals).
 
-- [ ] **Step 1: Write failing tests:** create + get round-trips all fields incl. `amount: null`; list shows `adjustment_count: 0` and `ingredient_names`; Bob GET/PATCH/DELETE on Alice's recipe → 404 and Alice's recipe unchanged; `source_url: "javascript:alert(1)"` → 400; `http://` image URL → 400; 101 ingredients → 400; delete cascades (ingredients/steps rows gone); tags `[" Pasta", "pasta", "Schnell"]` → stored `["Pasta", "Schnell"]`.
+- [ ] **Step 1: Write failing tests:** create + get round-trips all fields incl. `amount: null`; list shows `adjustment_count: 0` and `ingredient_names`; Bob GET/PATCH/DELETE on Alice's recipe → 404 and Alice's recipe unchanged; `source_url: "javascript:alert(1)"` → 400; `http://` source URL → 400; `source_platform: "tiktok"` → 400; `source_platform: null` with an instagram link → stored `"instagram"`; 101 ingredients → 400; delete cascades (ingredients/steps rows gone); tags `[" Pasta", "pasta", "Schnell"]` → stored `["Pasta", "Schnell"]`.
 - [ ] **Step 2:** Run → FAIL.
 - [ ] **Step 3:** Implement with prepared statements only (`.bind()`), every statement includes `user_id = ?` or joins through it.
 - [ ] **Step 4:** Run → PASS.
@@ -158,7 +172,7 @@ README.md                 setup + deploy steps
 
 **Interfaces:**
 - Produces:
-  - `POST /api/recipes/:id/adjustments` body `AdjustmentInput` → `201 Adjustment`, or `204` when a modify equals the original (existing modify deleted). `modify` upserts: at most one modify per `target_id` (merge new keys into the existing row's `new_values`). `remove` is idempotent (one per target). `target_id` must exist in `ingredients`/`steps` (per `target_type`) **of this recipe**, else 404.
+  - `POST /api/recipes/:id/adjustments` body `AdjustmentInput` → `201 Adjustment`, or `204` when a modify equals the original (existing modify deleted). `modify` upserts: at most one modify per `target_id` (merge new keys into the existing row's `new_values`, bump `updated_at`). PATCH also bumps `updated_at`. `remove` is idempotent (one per target). `target_id` must exist in `ingredients`/`steps` (per `target_type`) **of this recipe**, else 404.
   - `PATCH /api/recipes/:id/adjustments/:adjId` body `{ new_values }` → `200 Adjustment`; only for `add` rows (others → 400).
   - `DELETE /api/recipes/:id/adjustments/:adjId` → `204` (this is "zurücksetzen" / "wiederherstellen" / deleting an added item).
   - `PUT /api/recipes/:id/note` body `{ text: string }` → `204` (upsert; empty text deletes row).
@@ -194,7 +208,7 @@ README.md                 setup + deploy steps
 **Interfaces:**
 - Consumes: API from Tasks 4–6, `countLabel`, schema types.
 - Produces: `request<T>(path: string, init?: RequestInit): Promise<T>` — JSON in/out, `credentials: "same-origin"`; throws `ApiError { status: number; message: string }` (message from `{ error }` body) or `SessionExpiredError` when fetch rejects (TypeError), status is 401, or the response is not JSON. `api` object with one typed function per endpoint. Routes: `/` Home, `/neu` AddRecipe, `/rezept/:id` Detail, `/rezept/:id/kochen` CookMode. Global `<SessionExpired />` banner: "Sitzung abgelaufen" + button "Neu laden" (`location.reload()`).
-- Home: client-side search over `title` + `ingredient_names` (case-insensitive, trimmed); chips "Alle", "Angepasst" (`adjustment_count > 0`), "Unter 30 Min" (`total_minutes !== null && < 30`), then one chip per distinct tag (single-select); card shows image or placeholder, title, "{n} Min", "{n} Portionen", platform label "Instagram"/"YouTube"/"Web", orange badge `countLabel(n, "Anpassung", "Anpassungen")` when n > 0; sticky bottom button "Rezept hinzufügen" → `/neu`. Empty state: "Noch keine Rezepte".
+- Home (layout: Design Reference 1): header with subline `countLabel(total, "Rezept", "Rezepte") + " · " + adjusted + " angepasst"` and avatar `initials(me.userId)`; client-side search over `title` + `ingredient_names` (case-insensitive, trimmed); chips "Alle", "Angepasst" (`adjustment_count > 0`), "Unter 30 Min" (`total_minutes !== null && < 30`), then one chip per distinct tag (single-select); card shows placeholder (`placeholderColor(id)` + "Rezeptbild"), title, meta joined with " · " skipping missing parts ("{n} Min", "{n} Portionen", platform label "Instagram"/"YouTube"/"Web"), orange badge `countLabel(n, "Anpassung", "Anpassungen")` when n > 0; card → `/rezept/:id`; sticky "+ Rezept hinzufügen" → `/neu`. Empty state: "Noch keine Rezepte".
 
 - [ ] **Step 1: Write failing tests** `api.test.ts` (stub `globalThis.fetch`): 200 JSON → data; 400 `{error:"x"}` → `ApiError` with message "x"; fetch rejects → `SessionExpiredError` (Review Focus 4); 200 `text/html` → `SessionExpiredError`; 401 → `SessionExpiredError`.
 - [ ] **Step 2:** Run → FAIL.
@@ -208,8 +222,8 @@ README.md                 setup + deploy steps
 - Create: `src/pages/AddRecipe.tsx`
 
 **Interfaces:**
-- Consumes: `api.parse`, `api.createRecipe`, `formatAmount`, `detectPlatform`.
-- Produces: screen with segmented toggle "Link einfügen" (disabled, "Kommt bald") / "Text einfügen"; textarea; optional fields "Quelle (Link)" and "Bild-URL"; button "Rezept erkennen" (spinner, disabled while pending). After parse: preview card "Rezept erkannt" with title, "{n} Zutaten · {n} Schritte · {n} Min", platform label, the ingredient + step lists, hint "Bitte kurz prüfen, Mengen aus dem Video können fehlen", button "Ins Kochbuch speichern" → navigate to `/rezept/:id`. API errors shown inline in German.
+- Consumes: `api.parse`, `api.createRecipe`, `formatQuantity`, `detectPlatform`, `countLabel`.
+- Produces (layout: Design Reference 2): back chevron + "Rezept hinzufügen"; segmented toggle "Link einfügen" + "Bald" pill (disabled) / "Text einfügen"; "Caption oder Rezepttext" textarea; "Quelle" chips Instagram / YouTube / Web (single-select, optional; typing a link preselects via `detectPlatform` unless the user already picked one); "Link zum Original (optional)" input (prefix `https://` if the user omits the scheme); button "Rezept erkennen" (spinner, disabled while pending or text empty). After parse: preview card with check icon + "Rezept erkannt", title, four stat tiles (Zutaten, Schritte, Minuten — "–" when null, Portionen), first 3 ingredients via `formatQuantity` + "+ {n} weitere Zutaten" when more, "Quelle: {label}" when chosen, hint "Bitte kurz prüfen, Mengen aus dem Video können fehlen."; sticky "Ins Kochbuch speichern" → `/rezept/:id`. Changing the text after parse hides the preview. API errors inline in German.
 
 - [ ] **Step 1:** Implement.
 - [ ] **Step 2:** Verify in `npm run dev`: paste caption → preview → save → lands on detail; parse error shows message; invalid URL in "Quelle" shows the 400 message.
@@ -222,18 +236,20 @@ README.md                 setup + deploy steps
 
 **Interfaces:**
 - Consumes: `api.getRecipe`, adjustment/note/tag endpoints, `mergeRecipe`, `scaleAmount`, `formatAmount`, `countLabel`.
-- Produces: `ItemRow` props `{ item: Merged<Ingredient> | Merged<Step>; kind: "ingredient" | "step"; scale: (n: number | null) => number | null; showOriginal: boolean; onEdit(); onRemove(); onRestore(); onReset() }`. `EditSheet` = native `<dialog>` with fields per kind (Menge `inputmode="decimal"` accepting comma, Einheit, Name / Text, Dauer in Min).
-- Behaviour:
-  - Header image (or placeholder), button "Original" → `source_url` in new tab (`rel="noopener noreferrer"`), hidden when null.
-  - Servings stepper −/+ (min 1, max 100), local state, base = `recipe.servings`; scales all displayed amounts.
-  - Banner when count > 0: `countLabel(n, "eigene Anpassung", "eigene Anpassungen")` + toggle "Original zeigen"/"Anpassungen zeigen"; while showing the original, render raw `ingredients`/`steps`, no orange, editing disabled.
-  - Tabs "Zutaten" | "Schritte".
-  - Modified: orange bg + "Geändert · Original {formatted original}" (e.g. "Original 120 g", for steps "Original 6 Min" or "Original-Text") + "Zurücksetzen" (deletes all its adjustments). Added: orange + "Von dir hinzugefügt" + delete. Removed: strikethrough + "Wiederherstellen" (deletes the remove adjustment). Original: pencil + remove.
-  - Buttons "Zutat hinzufügen", "Schritt hinzufügen" open `EditSheet` empty → `add`.
-  - Editing an added item → PATCH; editing original/modified → POST modify with only the changed keys.
-  - Tags row: chips + small input to add, × to remove (PATCH).
+- Produces: `ItemRow` props `{ item: Merged<Ingredient> | Merged<Step>; kind: "ingredient" | "step"; number?: number; scale: (n: number | null) => number | null; showOriginal: boolean; onEdit(); onRestore() }`. `EditSheet` = native `<dialog>` (bottom sheet on mobile) with fields per kind (Menge `inputmode="decimal"` accepting comma, Einheit, Name / Text, Dauer in Min) and actions "Speichern", plus by status: original → "Entfernen"; modified → "Auf Original zurücksetzen" + "Entfernen"; added → "Löschen".
+- Behaviour (layout: Design Reference 3 + 4):
+  - Hero placeholder with round back button and pill "Original" + external-link icon → `source_url` in new tab (`rel="noopener noreferrer"`), hidden when null.
+  - Meta line: platform label · "{n} Min gesamt" · tags joined with ", " (parts skipped when missing). Tapping the tags part (or "Tags hinzufügen" when none) opens a small dialog: chips with × + input to add (PATCH).
+  - Banner when count > 0: `countLabel(n, "eigene Anpassung", "eigene Anpassungen")`, "Zuletzt geändert am {formatShortDate(max updated_at)}", toggle "Original zeigen"/"Anpassungen zeigen"; while showing the original, render raw `ingredients`/`steps`, no orange, pencils hidden.
+  - Card "Portionen" / "Mengen werden umgerechnet", stepper −/+ (min 1, max 100), local state, base = `recipe.servings`; scales all displayed amounts (incl. "Original 120 g" hints).
+  - Tabs "Zutaten · {n}" | "Schritte · {n}" (n = merged rows incl. added + removed).
+  - Ingredient rows show `formatQuantity(scaled, unit)` + name; step rows show number circle (numbering skips removed steps), text, "{n} Min".
+  - Modified: orange row + "Geändert · Original {formatQuantity(original)}" (steps: "Geändert · Original {n} Min" when duration changed, else "Geändert · Originaltext"). Added: orange + "Von dir hinzugefügt". Removed: dashed orange border, strikethrough, "Von dir entfernt" + "Wiederherstellen" (deletes the remove adjustment).
+  - "+ Zutat hinzufügen" / "+ Schritt hinzufügen" open `EditSheet` empty → `add`.
+  - Editing an added item → PATCH; editing original/modified → POST modify with only the changed keys; "Auf Original zurücksetzen" deletes the modify adjustment.
   - "Notiz für mich" textarea, saves on blur (PUT).
-  - Sticky "Kochen starten" → `/rezept/:id/kochen`.
+  - Small muted text button "Rezept löschen" below the note, with `confirm()` → DELETE → `/`.
+  - Sticky "Kochen starten" with play icon → `/rezept/:id/kochen`.
   - After each mutation refetch `getRecipe` (simple; ponytail: no optimistic updates).
 
 - [ ] **Step 1:** Implement.
@@ -247,8 +263,8 @@ README.md                 setup + deploy steps
 
 **Interfaces:**
 - Consumes: `mergeRecipe` (skip `removed` steps), `api.getRecipe`.
-- Produces: `remainingSeconds(endAt: number, now: number): number` (≥ 0, ceil); `formatClock(seconds: number): string` → `"8:00"`, `"0:05"`; `durationDiffLabel(original: number | null, current: number | null): string | null` → `"+2 Min"` / `"−1 Min"` / null when equal or either null. `useWakeLock(active: boolean)` hook: `navigator.wakeLock.request("screen")`, re-request on `visibilitychange` → visible, release on unmount; silently no-op when unsupported.
-- Screen: full-viewport `--primary` background, white large text (step ≥ 1.5rem), progress bar + "Schritt {i} von {n}"; when step status `modified` or `added`: hint "Deine Anpassung: {durationDiffLabel}" (or "Deine Anpassung" for text-only changes / added steps); timer when duration set: start/pause/reset, label "Original {o} Min · bei dir {c} Min" when they differ, else "{c} Min"; on reaching 0 → `navigator.vibrate?.(500)` + visible "Fertig". Buttons "Zurück" / "Weiter" (last step: "Fertig" → back to detail). Close button top-left.
+- Produces: `remainingSeconds(endAt: number, now: number): number` (≥ 0, ceil); `formatClock(seconds: number): string` → `"8:00"`, `"0:05"`; `durationDiffLabel(original: number | null, current: number | null): string | null` → `"+2 Min"` / `"−1 Min"` / null when equal or either null. `useWakeLock(active: boolean): boolean` hook (returns whether the lock is currently held): `navigator.wakeLock.request("screen")`, re-request on `visibilitychange` → visible, release on unmount; returns false when unsupported.
+- Screen (layout: Design Reference 5): full-viewport `--primary`; top bar X (→ detail), recipe title, sun icon + "An"/"Aus" reflecting whether the wake lock is held (tap toggles it); "Schritt {i} von {n}" + segmented progress bar (one segment per step); when step status `modified`: orange pill "Deine Anpassung: {durationDiffLabel}" (or "Deine Anpassung: Text" for text-only changes), when `added`: "Von dir hinzugefügt"; step text ~2rem Bricolage white. Timer panel only when duration set: SVG ring showing remaining/total, `formatClock` in the center; label "Original {o} Min · bei dir {c} Min" when they differ, else "{c} Min"; button "Timer starten" / "Pausieren" / "Fortsetzen"; on reaching 0 → `navigator.vibrate?.(500)` + ring label "Fertig". Changing step resets the timer. Buttons "Zurück" (disabled on step 1) / "Weiter" (last step: "Fertig" → detail).
 
 - [ ] **Step 1: Write failing tests:** `remainingSeconds(now + 8*60_000, now) === 480`; after end → 0; `remainingSeconds(now + 1500, now) === 2`; `formatClock(480) === "8:00"`; `formatClock(5) === "0:05"`; `durationDiffLabel(6, 8) === "+2 Min"`; `durationDiffLabel(6, 6) === null`.
 - [ ] **Step 2:** Run → FAIL.

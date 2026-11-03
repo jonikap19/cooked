@@ -2,7 +2,7 @@
 
 Original brief from the owner (2026-11-03), verbatim. Stack decision: Cloudflare (Workers + D1 + Access + Workers AI) — see `docs/superpowers/plans/2026-11-03-kochbuch-mvp.md`.
 
-Note: the brief mentions attached design screenshots; none were provided yet. Design follows the values below until they arrive.
+Designs: `screenshots/*.pdf` (local only, git-ignored). A written summary lives in the plan's "Design Reference" section.
 
 ---
 
