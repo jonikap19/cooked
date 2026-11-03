@@ -79,7 +79,11 @@ recipes.post("/api/recipes", async (c) => {
   const r = parsed.data;
   const { DB } = c.env;
   const id = crypto.randomUUID();
-  const imageUrl = r.image_url ? await claimTmpImage(c.env.IMAGES, r.image_url, id, c.var.userId) : null;
+  // ponytail: the claim runs before the DB batch, so a failed insert can orphan a <recipeId> object outside tmp/.
+  const imageUrl = r.image_url ? await claimTmpImage(c.env.IMAGES, r.image_url, id, c.var.userId).catch((e) => {
+    console.warn("save: image claim failed:", e instanceof Error ? e.name : "unknown"); // images are optional
+    return null;
+  }) : null;
   await DB.batch([
     DB.prepare(
       "INSERT INTO recipes (id, user_id, title, source_url, source_platform, image_url, servings, total_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
