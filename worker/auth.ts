@@ -8,7 +8,8 @@ const unauthenticated = { error: "Nicht angemeldet" };
 
 export const securityHeaders = createMiddleware<AppEnv>(async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "no-store");
+  // Image routes set their own private caching; everything else is never cached.
+  if (!c.res.headers.has("Cache-Control")) c.res.headers.set("Cache-Control", "no-store");
   c.res.headers.set("X-Content-Type-Options", "nosniff");
 });
 
