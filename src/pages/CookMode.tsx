@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Sun, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import { durationDiffLabel, formatClock, remainingSeconds } from "../lib/timer";
@@ -12,34 +12,23 @@ const C = 2 * Math.PI * R;
 
 type TimerState = { endAt: number | null; remainingWhenPaused: number | null };
 
-// Keyed by step in the parent, so changing step resets it.
-function StepTimer({ step, minutes }: { step: Merged<Step>; minutes: number }) {
+// State lives in CookMode, so a running timer survives Zurück/Weiter.
+function StepTimer({ step, minutes, state, now, onChange }: {
+  step: Merged<Step>;
+  minutes: number;
+  state: TimerState;
+  now: number;
+  onChange: (state: TimerState) => void;
+}) {
   const total = minutes * 60;
-  const [state, setState] = useState<TimerState>({ endAt: null, remainingWhenPaused: null });
-  const [now, setNow] = useState(() => Date.now());
   const running = state.endAt !== null;
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000); // only re-renders; time comes from endAt
-    return () => clearInterval(timer);
-  }, [running]);
-
   const remaining = state.endAt !== null ? remainingSeconds(state.endAt, now) : (state.remainingWhenPaused ?? total);
   const done = running && remaining === 0;
 
-  useEffect(() => {
-    if (done) navigator.vibrate?.(500);
-  }, [done]);
-
-  const start = (seconds: number) => {
-    const t = Date.now();
-    setNow(t);
-    setState({ endAt: t + seconds * 1000, remainingWhenPaused: null });
-  };
+  const start = (seconds: number) => onChange({ endAt: Date.now() + seconds * 1000, remainingWhenPaused: null });
   const click = () => {
     if (done) start(total);
-    else if (running) setState({ endAt: null, remainingWhenPaused: remaining });
+    else if (running) onChange({ endAt: null, remainingWhenPaused: remaining });
     else start(remaining);
   };
   const original = step.original?.duration_minutes ?? null;
@@ -75,6 +64,27 @@ export default function CookMode() {
   const [index, setIndex] = useState(0);
   const [awake, setAwake] = useState(true);
   const held = useWakeLock(awake);
+  const [timers, setTimers] = useState<Record<string, TimerState>>({});
+  const [now, setNow] = useState(() => Date.now());
+  const buzzed = useRef(new Set<string>());
+  const anyRunning = Object.values(timers).some((t) => t.endAt !== null);
+
+  useEffect(() => {
+    if (!anyRunning) return;
+    const tick = setInterval(() => setNow(Date.now()), 1000); // only re-renders; time comes from endAt
+    return () => clearInterval(tick);
+  }, [anyRunning]);
+
+  // Vibrate once per finished timer, whether or not its step is displayed.
+  useEffect(() => {
+    for (const [stepId, t] of Object.entries(timers)) {
+      const key = `${stepId}:${t.endAt}`;
+      if (t.endAt !== null && remainingSeconds(t.endAt, now) === 0 && !buzzed.current.has(key)) {
+        buzzed.current.add(key);
+        navigator.vibrate?.(500);
+      }
+    }
+  }, [timers, now]);
 
   const load = async () => {
     try {
@@ -111,6 +121,9 @@ export default function CookMode() {
   const last = index === steps.length - 1;
   const back = () => navigate(`/rezept/${id}`);
   const diff = step && durationDiffLabel(step.original?.duration_minutes ?? null, step.duration_minutes);
+  const otherIndex = steps.findIndex(
+    (s, i) => i !== index && timers[s.id]?.endAt != null && remainingSeconds(timers[s.id].endAt!, now) > 0,
+  );
   const hint = step?.status === "added" ? "Von dir hinzugefügt"
     : step?.status === "modified" ? `Deine Anpassung: ${diff ?? "Text"}` : null;
 
@@ -131,9 +144,25 @@ export default function CookMode() {
           </div>
           {hint && <span className="cook-hint">{hint}</span>}
           <p className="cook-text">{step.text}</p>
-          {step.duration_minutes !== null && <StepTimer key={step.id} step={step} minutes={step.duration_minutes} />}
+          {step.duration_minutes !== null && (
+            <StepTimer
+              step={step}
+              minutes={step.duration_minutes}
+              state={timers[step.id] ?? { endAt: null, remainingWhenPaused: null }}
+              now={now}
+              onChange={(next) => {
+                setNow(Date.now());
+                setTimers((all) => ({ ...all, [step.id]: next }));
+              }}
+            />
+          )}
         </>
       ) : <p className="cook-text">Keine Schritte vorhanden.</p>}
+      {otherIndex >= 0 && (
+        <button className="cook-other-timer" onClick={() => setIndex(otherIndex)}>
+          Timer Schritt {otherIndex + 1}: {formatClock(remainingSeconds(timers[steps[otherIndex].id].endAt!, now))}
+        </button>
+      )}
       <nav className="cook-nav">
         <button className="cook-back" disabled={index === 0} onClick={() => setIndex(index - 1)}><ChevronLeft size={20} aria-hidden="true" />Zurück</button>
         <button className="cook-next" onClick={() => (last || !step ? back() : setIndex(index + 1))}>
