@@ -200,7 +200,7 @@ export default function RecipeDetail() {
           placeholder="Was möchtest du dir merken?"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onBlur={() => note !== full.note && void mutate(() => api.saveNote(id, note))}
+          onBlur={() => note.trim() !== full.note && void mutate(() => api.saveNote(id, note.trim()))}
         />
         <button
           className="text-button muted-button"

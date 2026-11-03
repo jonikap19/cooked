@@ -5,7 +5,7 @@ import type { RecipeSummary } from "../../shared/schema";
 export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
   const meta = [
     recipe.total_minutes !== null && `${recipe.total_minutes} Min`,
-    `${recipe.servings} Portionen`,
+    countLabel(recipe.servings, "Portion", "Portionen"),
     recipe.source_platform && platformLabel(recipe.source_platform),
   ].filter(Boolean);
 
