@@ -88,6 +88,7 @@ export default function AddRecipe() {
         className="field"
         rows={6}
         maxLength={10000}
+        readOnly={pending}
         value={text}
         onChange={(event) => {
           setText(event.target.value);
