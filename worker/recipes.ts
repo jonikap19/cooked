@@ -6,7 +6,7 @@ import type { AppEnv } from "./auth";
 
 export const recipes = new Hono<AppEnv>();
 
-const invalid = { error: "Ungültige Eingabe" };
+export const invalid = { error: "Ungültige Eingabe" };
 const notFound = { error: "Nicht gefunden" };
 
 const Tags = z.object({ tags: z.array(z.string()).max(10) });
@@ -24,7 +24,7 @@ function normalizeTags(raw: string[]): string[] | null {
   return tags;
 }
 
-const readJson = (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => undefined);
+export const readJson = (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => undefined);
 
 type RecipeRow = Omit<Recipe, "tags"> & { tags: string };
 const toRecipe = (r: RecipeRow): Recipe => ({ ...r, tags: JSON.parse(r.tags) });
