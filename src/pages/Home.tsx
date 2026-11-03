@@ -1,7 +1,7 @@
 import { Plus, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { api } from "../api";
+import { ApiError, api, SessionExpiredError } from "../api";
 import RecipeCard from "../components/RecipeCard";
 import { countLabel, initials } from "../../shared/format";
 import type { RecipeSummary } from "../../shared/schema";
@@ -18,11 +18,21 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState("Alle");
 
-  useEffect(() => {
-    // Failures surface via the session banner; other errors leave the list empty.
-    api.listRecipes().then(setRecipes).catch(() => setRecipes([]));
-    api.me().then((me) => setUserId(me.userId)).catch(() => {});
+  const [loadError, setLoadError] = useState("");
+
+  const load = useCallback(() => {
+    setLoadError("");
+    api.listRecipes().then(setRecipes).catch((err) => {
+      // Session expiry is shown by the global banner.
+      if (err instanceof ApiError) setLoadError(err.message);
+      else if (!(err instanceof SessionExpiredError)) setLoadError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+    });
   }, []);
+
+  useEffect(() => {
+    load();
+    api.me().then((me) => setUserId(me.userId)).catch(() => {});
+  }, [load]);
 
   const all = recipes ?? [];
   const tags = [...new Set(all.flatMap((recipe) => recipe.tags))];
@@ -69,6 +79,12 @@ export default function Home() {
         ))}
       </div>
 
+      {loadError && (
+        <>
+          <p className="error" role="alert">{loadError}</p>
+          <button className="text-button" onClick={load}>Erneut versuchen</button>
+        </>
+      )}
       {recipes && shown.length === 0 && <p className="empty">{all.length === 0 ? "Noch keine Rezepte" : "Keine Treffer"}</p>}
       <div className="list">
         {shown.map((recipe) => (
