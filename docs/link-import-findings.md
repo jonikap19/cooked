@@ -22,7 +22,7 @@ Notes and limits:
 ## Decisions
 
 - **Instagram: (c) not supported, text-tab fallback.** Nothing is readable without a login or the Graph API (which needs an app review and a token). Show "Link konnte nicht gelesen werden. Füge den Text der Beschreibung ein." and switch to the text tab. Pre-fill is empty (we got no caption).
-- **YouTube (watch and Shorts): (a) HTML extraction.** The full description is in the HTML, so no API key is needed. Option (b), YouTube Data API v3 `videos.list?part=snippet`, would be more robust against markup changes but needs a new secret `YOUTUBE_API_KEY` (free quota, Google Cloud project). Not added; owner decision, see concern below.
+- **YouTube (watch and Shorts): (a) HTML extraction.** The full description is in the HTML, so no API key is needed (closed decision, see below).
 - **Recipe websites: (a) HTML extraction.** Prefer JSON-LD `Recipe`; fall back to `og:title` + `og:description` + body text only if D3 chooses to; otherwise fallback to the text tab with the description pre-filled.
 
 ## Implications for D3 (extractor)
