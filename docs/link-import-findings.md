@@ -17,7 +17,7 @@ Notes and limits:
 - Redirects are followed by `fetch` (chefkoch redirects wrong slugs to the right page; shorts and youtu.be end on the watch page). D2's guard must re-check every hop.
 - Instagram's shell was identical from this machine via curl, so it is not an IP-reputation issue; the content is client-rendered. `og:*` tags are only served to link-preview crawlers, and impersonating one is not something we should do.
 - The Instagram CDN `oe=` expiry question is moot: no image URL is reachable. (If an image URL ever came from Instagram it would be signed and expire, so it must not be stored as a hotlink.)
-- Not tested: a consent wall for EU visitors on YouTube (Worker egress did not hit one; Cloudflare IPs are not in the EU consent flow of the test location, so an occasional `consent.youtube.com` redirect must still map to the fallback), and no-JSON-LD pages with a full recipe in the body (only landing pages tested).
+
 
 ## Decisions
 
@@ -34,8 +34,13 @@ Read from the fetched HTML, in this order:
 3. **Generic:** `og:title`, `og:description` (then `<meta name="description">`), `og:image`. Decode HTML entities (`&amp;` appears in descriptions).
 4. **Image:** accept `og:image` / JSON-LD `image` only if it is https and passes the same URL guard; store the URL only (no download). Hosts seen are stable and unsigned. Skip it for Instagram (none) and if the URL has an expiry-looking param (`oe=`, `Expires=`, `X-Amz-Expires`).
 5. **Failure rule:** wall, non-200, no recipe text, or Instagram host: return whatever caption we got (maybe empty) and the German fallback message; never a 500.
-6. Page size seen: 0.25-1.5 MB. D2's size cap must allow about 2 MB for YouTube, or stream and stop after the `shortDescription` (it sits early in the page).
+6. Size: follow D2's rule unchanged: HTML cap 2 MB, a larger response is rejected (FetchRejected "size"); no truncating and no stop-after-`shortDescription` streaming. The largest page seen was ~1.4 MB (YouTube), so an oversized page falls back to the text tab.
 
-## Owner question (flagged)
+## Untested
 
-Is a `YOUTUBE_API_KEY` wanted? Not needed today (HTML works), but it is the stable alternative if YouTube changes its markup or starts showing consent walls to Worker IPs. Default: no key.
+- YouTube consent redirect (`consent.youtube.com`): never appeared from Worker egress. Expected handling: no `shortDescription` found, so fallback to the text tab.
+- Recipe page without JSON-LD whose recipe is only in the body (only landing pages tested). Expected handling: no usable recipe text, so fallback to the text tab with `og:description` pre-filled.
+
+## Closed decision
+
+No `YOUTUBE_API_KEY`; YouTube uses HTML extraction only. Upgrade path if the markup changes or consent walls appear: YouTube Data API v3 `videos.list?part=snippet` with a Worker secret.
