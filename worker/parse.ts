@@ -14,7 +14,7 @@ Regeln:
 - Wenn keine Menge genannt ist (z. B. "nach Geschmack", "etwas"), setze amount auf null.
 - Einheiten (unit) kurz: g, ml, EL, TL, Stk, Prise. Ohne Einheit: leerer String.
 - Erfinde niemals Zutaten, die nicht im Text stehen.
-- Teile die Zubereitung in einzelne, klar getrennte Schritte.
+- Ein Arbeitsschritt pro Schritt: höchstens zwei kurze Sätze, nur eine Handlung. Teile zusammengesetzte Anweisungen bei "dann", "danach", "anschließend", "inzwischen" und ";" in eigene Schritte. Eine Dauer bleibt bei der Handlung, zu der sie gehört. Führe nie Schritte zusammen. Behalte Reihenfolge und Wortlaut so weit wie möglich bei.
 - duration_minutes eines Schritts nur setzen, wenn im Text eine Dauer genannt wird, sonst null.
 - total_minutes: Gesamtzeit aus dem Text; wenn nicht genannt, die Summe der Schrittdauern; wenn unbekannt, null.
 - servings: Anzahl Portionen; wenn unbekannt, 2.
