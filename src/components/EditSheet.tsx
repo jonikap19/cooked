@@ -16,9 +16,10 @@ interface Props {
   onDelete(): void;
   onClose(): void;
   serverError: string;
+  busy: boolean;
 }
 
-export default function EditSheet({ kind, item, servingsHint, onSave, onReset, onRemove, onDelete, onClose, serverError }: Props) {
+export default function EditSheet({ kind, item, servingsHint, onSave, onReset, onRemove, onDelete, onClose, serverError, busy }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const ids = [useId(), useId(), useId()];
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient> | null) : null;
@@ -73,15 +74,15 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
           </>
         )}
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}
-        <button type="submit" className="primary-button inline">Speichern</button>
+        <button type="submit" className="primary-button inline" disabled={busy}>Speichern</button>
         {item?.status === "modified" && (
-          <button type="button" className="text-button adj" onClick={onReset}>Auf Original zurücksetzen</button>
+          <button type="button" className="text-button adj" disabled={busy} onClick={onReset}>Auf Original zurücksetzen</button>
         )}
         {item && item.status !== "added" && (
-          <button type="button" className="text-button adj" onClick={onRemove}>Entfernen</button>
+          <button type="button" className="text-button adj" disabled={busy} onClick={onRemove}>Entfernen</button>
         )}
         {item?.status === "added" && (
-          <button type="button" className="text-button adj" onClick={onDelete}>Löschen</button>
+          <button type="button" className="text-button adj" disabled={busy} onClick={onDelete}>Löschen</button>
         )}
       </form>
     </dialog>

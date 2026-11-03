@@ -11,9 +11,10 @@ interface Props {
   showOriginal: boolean;
   onEdit(): void;
   onRestore(): void;
+  busy: boolean;
 }
 
-export default function ItemRow({ item, kind, number, scale, showOriginal, onEdit, onRestore }: Props) {
+export default function ItemRow({ item, kind, number, scale, showOriginal, onEdit, onRestore, busy }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -48,7 +49,7 @@ export default function ItemRow({ item, kind, number, scale, showOriginal, onEdi
         {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
       </div>
       {status === "removed" ? (
-        <button className="restore" onClick={onRestore}>
+        <button className="restore" disabled={busy} onClick={onRestore}>
           <Undo2 size={18} aria-hidden="true" />
           Wiederherstellen
         </button>

@@ -1,5 +1,5 @@
 import { ChevronLeft, ExternalLink, Minus, Play, Plus } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import EditSheet from "../components/EditSheet";
@@ -24,24 +24,33 @@ export default function RecipeDetail() {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const noteSeeded = useRef(false);
 
   const load = useCallback(async () => {
     try {
       const loaded = await api.getRecipe(id);
       setFull(loaded);
-      setNote((current) => (full === null ? loaded.note : current));
+      setLoadError("");
+      if (!noteSeeded.current) {
+        noteSeeded.current = true;
+        setNote(loaded.note);
+      }
       setServings((current) => current ?? loaded.recipe.servings);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) setNotFound(true);
+      else if (err instanceof ApiError) setLoadError(err.message);
+      else if (!(err instanceof SessionExpiredError)) setLoadError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
     }
-    // ponytail: note seeds only on first load; later refetches keep what the user is typing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => void load(), [load]);
 
   // Runs a mutation, refetches, and surfaces the server's message; returns true on success.
   const mutate = async (action: () => Promise<unknown>): Promise<boolean> => {
+    if (busy) return false;
+    setBusy(true);
     setError("");
     try {
       await action();
@@ -51,6 +60,8 @@ export default function RecipeDetail() {
       if (err instanceof ApiError) setError(err.message);
       else if (!(err instanceof SessionExpiredError)) setError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
       return false;
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -59,6 +70,14 @@ export default function RecipeDetail() {
       <main className="page">
         <p>Rezept nicht gefunden</p>
         <Link to="/" className="text-button">Zurück</Link>
+      </main>
+    );
+  }
+  if (loadError && !full) {
+    return (
+      <main className="page">
+        <p className="error" role="alert">{loadError}</p>
+        <button className="text-button" onClick={() => void load()}>Erneut versuchen</button>
       </main>
     );
   }
@@ -160,6 +179,7 @@ export default function RecipeDetail() {
                 showOriginal={showOriginal}
                 onEdit={() => openSheet(tab, item)}
                 onRestore={() => void removeAdjustment(item.id, "remove")}
+                busy={busy}
               />
             );
           })}
@@ -198,7 +218,8 @@ export default function RecipeDetail() {
         <EditSheet
           kind={sheet.kind}
           item={sheet.item}
-          servingsHint={servings !== recipe.servings ? servings : null}
+          servingsHint={servings !== recipe.servings ? recipe.servings : null}
+          busy={busy}
           serverError={error}
           onSave={save}
           onReset={() => sheet.item && closeAfter(removeAdjustment(sheet.item.id, "modify"))}
