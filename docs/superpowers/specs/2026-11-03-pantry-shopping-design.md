@@ -117,6 +117,8 @@ Success: the owner adds two recipes to the list, the list shows only what's miss
 - Shown muted under the row in the detail view and on the cooking-mode step list.
 - A note is **not** an adjustment. It doesn't count toward "X Anpassungen", isn't orange, and survives resetting the ingredient's adjustments **(Claude's call)**.
 - Deleting the recipe deletes its notes.
+- Notes are stored per recipe, not per user, with an `author` column. A personal recipe has only one reader, so this is the same as "personal". The groups design (`2026-11-03-groups-sharing-design.md`) needs this shape so a group recipe's notes are shared and show who wrote them **(Claude's call)**.
+- Planned shopping-list entries and pantry mappings reference their recipe with cascading deletes, so a deleted recipe leaves no orphan lines (needed by the groups design).
 
 ### Navigation **(Claude's call)**
 
