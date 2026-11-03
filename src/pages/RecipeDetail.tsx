@@ -3,11 +3,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import EditSheet from "../components/EditSheet";
+import SplitSheet from "../components/SplitSheet";
 import ItemRow from "../components/ItemRow";
 import TagDialog from "../components/TagDialog";
 import { countLabel, formatShortDate, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
-import type { Ingredient, RecipeFull, Step } from "../../shared/schema";
+import type { Ingredient, RecipeFull, Step, StepValues } from "../../shared/schema";
 
 type Sheet = { kind: "ingredient" | "step"; item: Merged<Ingredient> | Merged<Step> | null };
 
@@ -21,6 +22,7 @@ export default function RecipeDetail() {
   const [servings, setServings] = useState<number | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [splitting, setSplitting] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -106,6 +108,28 @@ export default function RecipeDetail() {
     if (!item) return closeAfter(mutate(() => api.addAdjustment(id, { target_type: kind, action: "add", target_id: null, new_values: values } as never)));
     if (item.status === "added") return closeAfter(mutate(() => api.updateAdjustment(id, item.id, values as never)));
     return closeAfter(mutate(() => api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as never)));
+  };
+
+  // Sequential, so the pieces keep their creation order. A failure stops the sequence; the refetch shows what was saved.
+  const acceptSplit = (pieces: StepValues[]) => {
+    const step = sheet?.item;
+    if (!step) return;
+    return mutate(async () => {
+      try {
+        await api.addAdjustment(id, { target_type: "step", action: "remove", target_id: step.id });
+        for (const values of pieces) {
+          await api.addAdjustment(id, { target_type: "step", action: "add", target_id: null, insert_after: step.id, new_values: values } as never);
+        }
+      } catch (err) {
+        await load();
+        throw err;
+      }
+    }).then((done) => {
+      if (done) {
+        setSplitting(false);
+        setSheet(null);
+      }
+    });
   };
 
   const rows = tab === "ingredient" ? (showOriginal ? full.ingredients : merged.ingredients) : showOriginal ? full.steps : merged.steps;
@@ -224,8 +248,21 @@ export default function RecipeDetail() {
           onSave={save}
           onReset={() => sheet.item && closeAfter(removeAdjustment(sheet.item.id, "modify"))}
           onRemove={() => sheet.item && closeAfter(mutate(() => api.addAdjustment(id, { target_type: sheet.kind, action: "remove", target_id: sheet.item!.id })))}
+          onSplit={() => {
+            setError("");
+            setSplitting(true);
+          }}
           onDelete={() => sheet.item && closeAfter(mutate(() => api.deleteAdjustment(id, sheet.item!.id)))}
           onClose={() => setSheet(null)}
+        />
+      )}
+      {splitting && sheet?.item && (
+        <SplitSheet
+          text={(sheet.item as Merged<Step>).text}
+          busy={busy}
+          serverError={error}
+          onAccept={acceptSplit}
+          onClose={() => setSplitting(false)}
         />
       )}
       {tagsOpen && (

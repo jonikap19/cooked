@@ -4,7 +4,7 @@ import { ParsedRecipe } from "../shared/schema";
 import type { AppEnv } from "./auth";
 import { invalid, readJson } from "./recipes";
 
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
 
