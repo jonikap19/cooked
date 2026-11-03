@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "cooked",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "3fbf6d28-86d8-4ba2-b344-03a4880118c0",
       "migrations_dir": "migrations"
     }
   ],
