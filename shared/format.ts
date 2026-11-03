@@ -44,3 +44,9 @@ export function placeholderColor(id: string): string {
   for (const char of id) sum += char.charCodeAt(0);
   return PLACEHOLDER_COLORS[sum % PLACEHOLDER_COLORS.length];
 }
+
+const PLATFORM_LABELS = { instagram: "Instagram", youtube: "YouTube", web: "Web" } as const;
+
+export function platformLabel(platform: keyof typeof PLATFORM_LABELS): string {
+  return PLATFORM_LABELS[platform];
+}
