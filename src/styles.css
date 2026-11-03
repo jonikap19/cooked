@@ -1,0 +1,34 @@
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/dm-sans";
+
+:root {
+  --bg: #fafaf7;
+  --text: #1a1a17;
+  --primary: #1f4d3a;
+  --adj-text: #a33f0c;
+  --adj-bg: #fdebdd;
+  --surface: #ffffff;
+  --muted: #6b6b63;
+  --border: #e6e4dc;
+  --tile: #f3f2ed;
+  --primary-soft: #e4ece7;
+  --cook-panel: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "DM Sans Variable", sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Bricolage Grotesque Variable", sans-serif;
+  font-weight: 700;
+}
