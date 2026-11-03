@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "cooked",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "3fbf6d28-86d8-4ba2-b344-03a4880118c0",
       "migrations_dir": "migrations"
     }
   ],
@@ -24,7 +24,7 @@
     }
   ],
   "vars": {
-    "TEAM_DOMAIN": "https://YOUR-TEAM.cloudflareaccess.com",
-    "POLICY_AUD": "REPLACE_WITH_ACCESS_APP_AUD"
+    "TEAM_DOMAIN": "https://rapid-glade-509a.cloudflareaccess.com",
+    "POLICY_AUD": "82269bfbd10c774ac16de6cc1130f765c66ede38592472c26e76c5b741bd39ff"
   }
 }
