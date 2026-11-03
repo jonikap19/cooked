@@ -1,0 +1,34 @@
+import { describe, expect, it } from "vitest";
+import { AdjustmentInput, NewRecipe } from "../shared/schema";
+
+const ok = (input: unknown) => AdjustmentInput.safeParse(input).success;
+const recipe = {
+  title: "T", servings: 2, total_minutes: null, ingredients: [],
+  steps: [{ text: "x", duration_minutes: null }], source_platform: null,
+};
+
+describe("AdjustmentInput", () => {
+  it("accepts valid add, modify, remove", () => {
+    expect(ok({ target_type: "ingredient", action: "add", target_id: null, new_values: { name: "A", amount: null, unit: "" } })).toBe(true);
+    expect(ok({ target_type: "step", action: "modify", target_id: "s1", new_values: { duration_minutes: 8 } })).toBe(true);
+    expect(ok({ target_type: "step", action: "remove", target_id: "s1" })).toBe(true);
+  });
+  it("rejects invalid combinations", () => {
+    expect(ok({ target_type: "ingredient", action: "add", target_id: "i1", new_values: { name: "A", amount: 1, unit: "" } })).toBe(false);
+    expect(ok({ target_type: "ingredient", action: "add", target_id: null, new_values: { name: "A" } })).toBe(false);
+    expect(ok({ target_type: "ingredient", action: "modify", target_id: "i1", new_values: {} })).toBe(false);
+    expect(ok({ target_type: "ingredient", action: "modify", target_id: null, new_values: { amount: 1 } })).toBe(false);
+    expect(ok({ target_type: "step", action: "modify", target_id: "s1", new_values: { amount: 1 } })).toBe(false);
+    expect(ok({ target_type: "step", action: "remove", target_id: null })).toBe(false);
+    expect(ok({ target_type: "ingredient", action: "modify", target_id: "i1", new_values: { amount: 100_001 } })).toBe(false);
+  });
+});
+
+describe("NewRecipe source_url", () => {
+  it("allows https and null only", () => {
+    expect(NewRecipe.safeParse({ ...recipe, source_url: "https://example.com/r" }).success).toBe(true);
+    expect(NewRecipe.safeParse({ ...recipe, source_url: null }).success).toBe(true);
+    expect(NewRecipe.safeParse({ ...recipe, source_url: "http://example.com" }).success).toBe(false);
+    expect(NewRecipe.safeParse({ ...recipe, source_url: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
