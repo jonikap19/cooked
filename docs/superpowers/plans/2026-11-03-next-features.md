@@ -2,27 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship four follow-ups to the Kochbuch MVP: automatic deploys, better cooking-mode timers, finer-grained recipe steps, and import from Instagram/YouTube/web links.
+**Goal:** Ship three follow-ups to the Kochbuch MVP: better cooking-mode timers, finer-grained recipe steps, and import from Instagram/YouTube/web links.
 
-**Architecture:** Same single Worker (Hono API + Static Assets SPA, D1, Workers AI, Access). Deploys move from the owner's laptop to a GitHub Actions job that runs after CI on `main`. Timers gain a text-based duration detector. Steps get split at import time (prompt) and on demand (new AI endpoint + positioned "add" adjustments). Link import adds a server-side fetch-and-extract layer in front of the existing `parseRecipeText`, plus R2 for recipe images.
+**Architecture:** Same single Worker (Hono API + Static Assets SPA, D1, Workers AI, Access). Deploys stay manual for now (owner runs `npm run deploy` from an up-to-date `main` after each merged PR); an automatic pipeline is deferred. Timers gain a text-based duration detector. Steps get split at import time (prompt) and on demand (new AI endpoint + positioned "add" adjustments). Link import adds a server-side fetch-and-extract layer in front of the existing `parseRecipeText`, plus R2 for recipe images.
 
-**Tech Stack:** as in the MVP plan, plus `cloudflare/wrangler-action`, Cloudflare R2, Web Audio API.
+**Tech Stack:** as in the MVP plan, plus Cloudflare R2, Web Audio API.
 
-**Spec:** `docs/spec.md` (MVP brief; "Link einfügen … bauen wir später") plus the owner's request of 2026-11-03, verbatim: *"1. timer in cooking mode for steps that take a certain amount of time 2. link import 3. splitting recipe steps into smaller pieces if possible 4. add deployment pipeline"*. Repo rules: `rules.md`. Designs: `screenshots/*.pdf` (local; summary in the MVP plan's Design Reference).
+**Spec:** `docs/spec.md` (MVP brief; "Link einfügen … bauen wir später") plus the owner's request of 2026-11-03, verbatim: *"1. timer in cooking mode for steps that take a certain amount of time 2. link import 3. splitting recipe steps into smaller pieces if possible 4. add deployment pipeline"* — item 4 later deferred by the owner ("lets skip the deploy pipeline for now, i want to inform myself more on that first"). Repo rules: `rules.md`. Designs: `screenshots/*.pdf` (local; summary in the MVP plan's Design Reference).
 
 ## Global Constraints
 
 - Everything from the MVP plan's Global Constraints still applies (German UI strings, tokens, orange only for adjustments, ≥ 44 px, no emojis, user scoping → 404, originals insert-only, https-only URLs, input limits).
-- Each phase is its own branch (`chore/deploy-pipeline`, `feat/step-timers`, `feat/step-splitting`, `feat/link-import`) and its own PR. Phases ship in the order below. A phase may start only after the previous PR is merged.
+- Each phase is its own branch (`feat/step-timers`, `feat/step-splitting`, `feat/link-import`) and its own PR. Phases ship in the order below. A phase may start only after the previous PR is merged.
 - Migrations are additive only (new tables/columns with defaults); never edit an applied migration. Next number: `0002_…`.
-- Deploys happen only from `main` through the pipeline (Phase A). After Phase A, nobody runs `npm run deploy` by hand except in an emergency (README says so).
+- Deploys stay manual and owner-run: after a PR is merged, the owner runs `git switch main && git pull`, then `npm run db:migrate:remote` (when the PR added a migration) **before** `npm run deploy`. Each PR description says whether it contains a migration. Never deploy from a feature branch.
 - Workers AI calls always pass `max_tokens` and validate output with zod; never log pasted text, fetched page content or URLs with query strings.
 - Server-side fetches of user-supplied URLs (Phase D) go through one guarded function (see Task D2); nothing else in the Worker calls `fetch` with user input.
 - New German strings, verbatim: "aus dem Text erkannt", "Schritt aufteilen", "Vorschlag übernehmen", "Abbrechen", "Wird aufgeteilt …", "Rezept laden", "Wird geladen …", "Link konnte nicht gelesen werden. Füge den Text der Beschreibung ein.", "Nicht unterstützter Link".
 
 ## Review Focus
 
-1. **A deploy that runs migrations against the wrong database or deploys untested code.** Deploy must depend on the `test` job of the same commit and run `d1 migrations apply --remote` before `wrangler deploy`. Verified in Task A1 by the job graph and the first real run.
+1. **The alarm on a phone** (iOS blocks audio until a user gesture, Android may not vibrate in silent mode): `playAlarm()` must never throw, must be unlocked by the "Timer starten" tap, and the visible "Fertig" state must appear even when sound and vibration are unavailable. Covered in Task B2 (code review + manual phone check).
 2. **Durations in German free text** ("ca. 10–12 Minuten", "1 Std.", "eine halbe Stunde", "30 Sek.", "über Nacht"): the detector must find the common forms, ignore temperatures ("180 Grad") and quantities, and return nothing for "über Nacht". Tests in Task B1.
 3. **Split pieces land in the wrong place or survive a reset badly.** Added steps with `insert_after` must render directly after their anchor, in creation order, and deleting the anchor's remove adjustment must restore the original while keeping the pieces visibly "added". Tests in Task C2.
 4. **SSRF / hostile pages in link import**: non-https, IP-literal hosts, `localhost`, redirects to any of those, huge or non-HTML responses, and slow servers must all be rejected with a German error, never a 500 or a hang. Tests in Task D2.
@@ -31,7 +31,6 @@
 ## File Structure (new or changed)
 
 ```
-.github/workflows/ci.yml        + deploy job (Phase A); guards removed
 shared/duration.ts              detectDuration(text) (Phase B)
 src/lib/alarm.ts                playAlarm() via Web Audio (Phase B)
 src/pages/CookMode.tsx          detected-duration timers, alarm, running-timer chips (Phase B)
@@ -47,26 +46,6 @@ migrations/0003_…               only if Phase D needs a column (image stays in
 src/pages/AddRecipe.tsx         "Link einfügen" tab enabled (Phase D)
 test/*.test.ts, test/fixtures/*.html
 ```
-
----
-
-## Phase A — Deployment pipeline (`chore/deploy-pipeline`)
-
-### Task A1: Deploy job after CI on `main`
-
-**Files:**
-- Modify: `.github/workflows/ci.yml`, `README.md`, `CLAUDE.md`
-
-**Interfaces:**
-- Produces: job `deploy` in `ci.yml`: `needs: test`, `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, `environment: production`, `concurrency: { group: deploy-production, cancel-in-progress: false }`, `permissions: contents: read`. Steps: checkout, setup-node `lts/*` with npm cache, `npm ci`, `npx wrangler d1 migrations apply cooked --remote`, `npm run deploy`, smoke check. Env: `CLOUDFLARE_API_TOKEN` (repo secret), `CLOUDFLARE_ACCOUNT_ID` (repo variable).
-- Smoke check (bash in the job): `curl -fsS https://cooked.test-joni.workers.dev/api/health` returns 200, and `curl -s -o /dev/null -w '%{http_code}' …/api/me` is `302` or `401` (Access or Worker rejects anonymous). Any other code fails the job.
-
-- [ ] **Step 1:** Remove the `ponytail:` guards from the `test` job (main has `package-lock.json` now) and use plain `cache: npm`.
-- [ ] **Step 2:** Add the `deploy` job as above. Pin `actions/checkout` and `actions/setup-node` to the same major versions as `test`.
-- [ ] **Step 3:** README "Deploy" section: owner creates a Cloudflare API token (custom: Account → Workers Scripts: Edit, D1: Edit, Account Settings: Read; Zone: none), stores it as repo secret `CLOUDFLARE_API_TOKEN`, sets repo variable `CLOUDFLARE_ACCOUNT_ID`, creates GitHub environment `production` (optional required reviewer = owner). Manual `npm run deploy` only for emergencies.
-- [ ] **Step 4:** CLAUDE.md working notes: the deploy rule (main → pipeline only; migrations additive) and the Access one-time PIN learning (new Zero Trust accounts default to the Cloudflare IdP; OTP must be added under Integrations → Identity providers; PINs are only sent to addresses the policy allows).
-- [ ] **Step 5:** Verify: PR CI green (deploy job skipped on `pull_request`). After merge, the `main` run shows `test` → `deploy` and the smoke check passes. If the token is missing, the job must fail loudly at the wrangler step, not silently skip.
-- [ ] **Step 6: Commit** `chore: deploy to cloudflare after ci on main`.
 
 ---
 
@@ -201,6 +180,15 @@ test/*.test.ts, test/fixtures/*.html
 - [ ] **Step 6: Commit** `feat: enable link import in the add screen`.
 
 ---
+
+## Deferred: deployment pipeline
+
+Paused by the owner until they've read up on it. When it comes back, it becomes its own plan (`chore/deploy-pipeline`). Sketch of what was proposed, kept for that discussion:
+
+- A `deploy` job in `.github/workflows/ci.yml` with `needs: test`, only on push to `main`, GitHub environment `production`, no cancel-in-progress.
+- Steps: `npm ci` → `npx wrangler d1 migrations apply cooked --remote` → `npm run deploy` → smoke check (`/api/health` 200, `/api/me` 302 or 401).
+- Needs a scoped Cloudflare API token as repo secret `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit, Account Settings: Read) and repo variable `CLOUDFLARE_ACCOUNT_ID`.
+- Also drop the `ponytail:` guards from the `test` job (harmless now, `main` has `package-lock.json`).
 
 ## Out of scope (ask before adding)
 
