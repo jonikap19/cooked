@@ -39,6 +39,7 @@ function parseAllowedUrl(raw: string): URL {
   const isIpv4 = /^\d+\.\d+\.\d+\.\d+$/.test(host);
   const isDnsName =
     !host.startsWith("[") &&
+    host.split(".").every(Boolean) &&
     !isIpv4 &&
     host.includes(".") &&
     host !== "localhost" &&
