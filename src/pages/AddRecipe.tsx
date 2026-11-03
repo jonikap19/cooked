@@ -47,20 +47,31 @@ export default function AddRecipe() {
   };
 
   const parse = () => run(async () => setParsed(await api.parse(text)));
+  // A new link must never inherit image, source or platform from the previous import.
+  const resetImport = () => {
+    setParsed(null);
+    setImageUrl(null);
+    setLink("");
+    setPlatform(null);
+    setPlatformTouched(false);
+  };
   const importLink = () =>
     run(async () => {
+      resetImport();
+      const url = normalizeLink(importUrl) ?? "";
       try {
-        const result = await api.importLink(normalizeLink(importUrl) ?? "");
+        const result = await api.importLink(url);
         setParsed(result.recipe);
         setImageUrl(result.image_url);
         setLink(result.source_url);
         setPlatform(result.source_platform);
-        setPlatformTouched(false);
       } catch (err) {
         if (!(err instanceof ApiError) || err.status !== 422) throw err;
         // The page gave us nothing usable: continue with the text, keeping what the user already typed if there's no caption.
         if (err.data?.caption) setText(err.data.caption);
-        setParsed(null);
+        // The text tab has a source-link field, so the link we tried goes there.
+        setLink(url);
+        setPlatform(detectPlatform(url));
         setTab("text");
         throw err;
       }
@@ -117,7 +128,7 @@ export default function AddRecipe() {
             value={importUrl}
             onChange={(event) => {
               setImportUrl(event.target.value);
-              setParsed(null);
+              resetImport();
             }}
           />
           {!parsed && (
