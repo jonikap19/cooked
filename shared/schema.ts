@@ -49,6 +49,7 @@ export const Adjustment = z.object({
   target_type: z.enum(["ingredient", "step"]),
   target_id: z.string().nullable(),
   action: z.enum(["modify", "add", "remove"]),
+  insert_after: z.string().nullable(),
   // Strict, so a step's values are not stripped to {} by the ingredient variant.
   new_values: z
     .union([z.strictObject(IngredientValues.shape).partial(), z.strictObject(StepValues.shape).partial()])
@@ -63,14 +64,21 @@ const hasKeys = (values: object) => Object.keys(values).length > 0;
 
 // One variant per (target_type, action), so each combination validates its own value shape.
 const inputsFor = <T extends "ingredient" | "step", V extends z.ZodObject>(targetType: T, values: V) => [
-  z.object({ target_type: z.literal(targetType), action: z.literal("add"), target_id: z.null(), new_values: values }),
+  z.object({
+    target_type: z.literal(targetType),
+    action: z.literal("add"),
+    target_id: z.null(),
+    insert_after: targetId.nullish(),
+    new_values: values,
+  }),
   z.object({
     target_type: z.literal(targetType),
     action: z.literal("modify"),
     target_id: targetId,
+    insert_after: z.undefined().optional(), // only adds are positioned; z.undefined rejects instead of silently stripping
     new_values: values.partial().refine(hasKeys, "Mindestens ein Feld"),
   }),
-  z.object({ target_type: z.literal(targetType), action: z.literal("remove"), target_id: targetId }),
+  z.object({ target_type: z.literal(targetType), action: z.literal("remove"), target_id: targetId, insert_after: z.undefined().optional() }),
 ];
 
 export const AdjustmentInput = z.union([
