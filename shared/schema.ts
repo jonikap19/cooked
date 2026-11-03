@@ -49,7 +49,10 @@ export const Adjustment = z.object({
   target_type: z.enum(["ingredient", "step"]),
   target_id: z.string().nullable(),
   action: z.enum(["modify", "add", "remove"]),
-  new_values: z.union([IngredientValues.partial(), StepValues.partial()]).nullable(),
+  // Strict, so a step's values are not stripped to {} by the ingredient variant.
+  new_values: z
+    .union([z.strictObject(IngredientValues.shape).partial(), z.strictObject(StepValues.shape).partial()])
+    .nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });

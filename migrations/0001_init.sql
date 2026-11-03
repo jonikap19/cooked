@@ -8,7 +8,7 @@ CREATE TABLE recipes (
   servings INTEGER NOT NULL,
   total_minutes INTEGER,
   tags TEXT NOT NULL DEFAULT '[]',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE TABLE ingredients (
@@ -35,8 +35,8 @@ CREATE TABLE adjustments (
   target_id TEXT,
   action TEXT NOT NULL CHECK (action IN ('modify', 'add', 'remove')),
   new_values TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE TABLE notes (

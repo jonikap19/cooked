@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdjustmentInput, NewRecipe } from "../shared/schema";
+import { Adjustment, AdjustmentInput, NewRecipe } from "../shared/schema";
 
 const ok = (input: unknown) => AdjustmentInput.safeParse(input).success;
 const recipe = {
@@ -30,5 +30,18 @@ describe("NewRecipe source_url", () => {
     expect(NewRecipe.safeParse({ ...recipe, source_url: null }).success).toBe(true);
     expect(NewRecipe.safeParse({ ...recipe, source_url: "http://example.com" }).success).toBe(false);
     expect(NewRecipe.safeParse({ ...recipe, source_url: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
+
+describe("Adjustment round trip", () => {
+  const base = { id: "a1", target_id: "x", created_at: "t", updated_at: "t" };
+  it.each([
+    { target_type: "step", action: "modify", new_values: { duration_minutes: 8 } },
+    { target_type: "ingredient", action: "modify", new_values: { amount: 150 } },
+    { target_type: "ingredient", action: "add", new_values: { name: "A", amount: null, unit: "g" } },
+    { target_type: "step", action: "add", new_values: { text: "Rühren", duration_minutes: null } },
+  ])("keeps new_values of $target_type $action", (variant) => {
+    const adjustment = { ...base, ...variant };
+    expect(Adjustment.parse(adjustment)).toEqual(adjustment);
   });
 });
