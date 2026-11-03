@@ -24,6 +24,9 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Learnings
 
+- 2026-11-03 — Access email login: new Zero Trust accounts default to the Cloudflare IdP; One-time PIN must be added under Integrations → Identity providers and enabled on the app. The Worker quick-enable dialog has no per-email option — edit the `cooked - Production` policy (Emails selector). PINs are only sent to addresses the policy allows. Why: first login failed without OTP.
+- 2026-11-03 — Deploys are manual (owner runs `npm run deploy` from `main`, migrations first); the auto-deploy pipeline is deferred by the owner. Why: owner wants to read up first.
+
 - 2026-11-03 — `@cloudflare/vitest-pool-workers` was renamed `@cloudflare/vitest-plugin`. Why: old package is stale.
 - 2026-11-03 — Static Assets Workers don't get `ctx.access`; verify the Access JWT ourselves with jose. Why: `ctx.access` is not provided there.
 - 2026-11-03 — D1 timestamps are stored as ISO UTC via `strftime`. Why: `CURRENT_TIMESTAMP` has no timezone marker.
