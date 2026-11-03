@@ -133,3 +133,13 @@ describe("recipes api", () => {
     expect((await call(a, `/api/recipes/${id}`, "PATCH", { tags: Array.from({ length: 11 }, (_, i) => `t${i}`) })).status).toBe(400);
   });
 });
+
+describe("unexpected errors", () => {
+  it("returns a JSON 500 with security headers", async () => {
+    const DB = { prepare: () => { throw new Error("boom"); } } as unknown as D1Database;
+    const res = await app.request("/api/recipes", { headers: await authHeaders("a@b.de") }, testEnv({ DB }));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Etwas ist schiefgelaufen. Bitte versuche es erneut." });
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+});

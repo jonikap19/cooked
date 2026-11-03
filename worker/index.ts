@@ -17,6 +17,10 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   const app = new Hono<AppEnv>();
 
   app.use("/api/*", securityHeaders);
+  app.onError((err, c) => {
+    console.error(err);
+    return c.json({ error: "Etwas ist schiefgelaufen. Bitte versuche es erneut." }, 500);
+  });
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.use("/api/*", sameOrigin);
   app.use("/api/*", accessAuth(getJwks));
