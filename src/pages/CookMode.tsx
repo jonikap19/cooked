@@ -2,8 +2,10 @@ import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Sun, X } from "lucid
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
-import { durationDiffLabel, formatClock, remainingSeconds } from "../lib/timer";
+import { playAlarm, unlockAudio } from "../lib/alarm";
+import { durationDiffLabel, formatClock, remainingSeconds, timerChips } from "../lib/timer";
 import { useWakeLock } from "../lib/wakeLock";
+import { detectDuration } from "../../shared/duration";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { RecipeFull, Step } from "../../shared/schema";
 
@@ -13,9 +15,10 @@ const C = 2 * Math.PI * R;
 type TimerState = { endAt: number | null; remainingWhenPaused: number | null };
 
 // State lives in CookMode, so a running timer survives Zurück/Weiter.
-function StepTimer({ step, minutes, state, now, onChange }: {
+function StepTimer({ step, minutes, fromText, state, now, onChange }: {
   step: Merged<Step>;
   minutes: number;
+  fromText: boolean;
   state: TimerState;
   now: number;
   onChange: (state: TimerState) => void;
@@ -25,14 +28,18 @@ function StepTimer({ step, minutes, state, now, onChange }: {
   const remaining = state.endAt !== null ? remainingSeconds(state.endAt, now) : (state.remainingWhenPaused ?? total);
   const done = running && remaining === 0;
 
-  const start = (seconds: number) => onChange({ endAt: Date.now() + seconds * 1000, remainingWhenPaused: null });
+  const start = (seconds: number) => {
+    unlockAudio();
+    onChange({ endAt: Date.now() + seconds * 1000, remainingWhenPaused: null });
+  };
   const click = () => {
     if (done) start(total);
     else if (running) onChange({ endAt: null, remainingWhenPaused: remaining });
     else start(remaining);
   };
   const original = step.original?.duration_minutes ?? null;
-  const label = step.status === "modified" && original !== null && original !== minutes
+  const label = fromText ? `${minutes} Min · aus dem Text erkannt`
+    : step.status === "modified" && original !== null && original !== minutes
     ? `Original ${original} Min · bei dir ${minutes} Min`
     : `${minutes} Min`;
   const Icon = done ? RotateCcw : running ? Pause : Play;
@@ -67,7 +74,7 @@ export default function CookMode() {
   const [timers, setTimers] = useState<Record<string, TimerState>>({});
   const [now, setNow] = useState(() => Date.now());
   const buzzed = useRef(new Set<string>());
-  const anyRunning = Object.values(timers).some((t) => t.endAt !== null);
+  const anyRunning = Object.values(timers).some((t) => t.endAt !== null && remainingSeconds(t.endAt, now) > 0);
 
   useEffect(() => {
     if (!anyRunning) return;
@@ -75,13 +82,14 @@ export default function CookMode() {
     return () => clearInterval(tick);
   }, [anyRunning]);
 
-  // Vibrate once per finished timer, whether or not its step is displayed.
+  // Vibrate and beep once per finished timer, whether or not its step is displayed.
   useEffect(() => {
     for (const [stepId, t] of Object.entries(timers)) {
       const key = `${stepId}:${t.endAt}`;
       if (t.endAt !== null && remainingSeconds(t.endAt, now) === 0 && !buzzed.current.has(key)) {
         buzzed.current.add(key);
         navigator.vibrate?.(500);
+        playAlarm();
       }
     }
   }, [timers, now]);
@@ -121,9 +129,8 @@ export default function CookMode() {
   const last = index === steps.length - 1;
   const back = () => navigate(`/rezept/${id}`);
   const diff = step && durationDiffLabel(step.original?.duration_minutes ?? null, step.duration_minutes);
-  const otherIndex = steps.findIndex(
-    (s, i) => i !== index && timers[s.id]?.endAt != null && remainingSeconds(timers[s.id].endAt!, now) > 0,
-  );
+  const chips = timerChips(steps.map((s) => s.id), timers, index, now);
+  const minutes = step ? step.duration_minutes ?? detectDuration(step.text) : null;
   const hint = step?.status === "added" ? "Von dir hinzugefügt"
     : step?.status === "modified" ? `Deine Anpassung: ${diff ?? "Text"}` : null;
 
@@ -144,10 +151,11 @@ export default function CookMode() {
           </div>
           {hint && <span className="cook-hint">{hint}</span>}
           <p className="cook-text">{step.text}</p>
-          {step.duration_minutes !== null && (
+          {minutes !== null && (
             <StepTimer
               step={step}
-              minutes={step.duration_minutes}
+              minutes={minutes}
+              fromText={step.duration_minutes === null}
               state={timers[step.id] ?? { endAt: null, remainingWhenPaused: null }}
               now={now}
               onChange={(next) => {
@@ -158,10 +166,14 @@ export default function CookMode() {
           )}
         </>
       ) : <p className="cook-text">Keine Schritte vorhanden.</p>}
-      {otherIndex >= 0 && (
-        <button className="cook-other-timer" onClick={() => setIndex(otherIndex)}>
-          Timer Schritt {otherIndex + 1}: {formatClock(remainingSeconds(timers[steps[otherIndex].id].endAt!, now))}
-        </button>
+      {chips.length > 0 && (
+        <div className="cook-chips">
+          {chips.map(({ index: i, seconds }) => (
+            <button key={steps[i].id} className="cook-chip" onClick={() => setIndex(i)}>
+              Schritt {i + 1} · {seconds === null ? "Fertig" : formatClock(seconds)}
+            </button>
+          ))}
+        </div>
       )}
       <nav className="cook-nav">
         <button className="cook-back" disabled={index === 0} onClick={() => setIndex(index - 1)}><ChevronLeft size={20} aria-hidden="true" />Zurück</button>

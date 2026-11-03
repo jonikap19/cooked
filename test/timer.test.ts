@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationDiffLabel, formatClock, remainingSeconds } from "../src/lib/timer";
+import { durationDiffLabel, formatClock, remainingSeconds, timerChips } from "../src/lib/timer";
 
 describe("timer", () => {
   const now = 1_000_000;
@@ -17,5 +17,17 @@ describe("timer", () => {
     expect(durationDiffLabel(8, 7)).toBe("−1 Min");
     expect(durationDiffLabel(6, 6)).toBeNull();
     expect(durationDiffLabel(null, 6)).toBeNull();
+  });
+  it("lists running and finished timers of other steps only", () => {
+    const timers = {
+      a: { endAt: now + 90_000 },
+      b: { endAt: now - 1000 },
+      c: { endAt: null },
+      d: { endAt: now + 5000 },
+    };
+    expect(timerChips(["a", "b", "c", "d"], timers, 3, now)).toEqual([
+      { index: 0, seconds: 90 },
+      { index: 1, seconds: null },
+    ]);
   });
 });
