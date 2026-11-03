@@ -6,6 +6,7 @@ import EditSheet from "../components/EditSheet";
 import SplitSheet from "../components/SplitSheet";
 import ItemRow from "../components/ItemRow";
 import TagDialog from "../components/TagDialog";
+import RecipeImage from "../components/RecipeImage";
 import { countLabel, formatShortDate, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { Ingredient, RecipeFull, Step, StepValues } from "../../shared/schema";
@@ -141,13 +142,15 @@ export default function RecipeDetail() {
   return (
     <main className="detail">
       <div className="hero" style={{ background: placeholderColor(recipe.id) }}>
+        <RecipeImage src={recipe.image_url}>
+          <span className="hero-label">Rezeptbild</span>
+        </RecipeImage>
         <Link to="/" className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
         {recipe.source_url && (
           <a className="source-pill" href={recipe.source_url} target="_blank" rel="noopener noreferrer">
             Original <ExternalLink size={16} aria-hidden="true" />
           </a>
         )}
-        <span className="hero-label">Rezeptbild</span>
       </div>
 
       <div className="detail-sheet">

@@ -20,10 +20,14 @@ export default function AddRecipe() {
   const navigate = useNavigate();
   const textId = useId();
   const linkId = useId();
+  const importUrlId = useId();
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [platform, setPlatform] = useState<Platform>(null);
   const [platformTouched, setPlatformTouched] = useState(false);
+  const [tab, setTab] = useState<"link" | "text">("link");
+  const [importUrl, setImportUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedRecipe | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -43,10 +47,28 @@ export default function AddRecipe() {
   };
 
   const parse = () => run(async () => setParsed(await api.parse(text)));
+  const importLink = () =>
+    run(async () => {
+      try {
+        const result = await api.importLink(normalizeLink(importUrl) ?? "");
+        setParsed(result.recipe);
+        setImageUrl(result.image_url);
+        setLink(result.source_url);
+        setPlatform(result.source_platform);
+        setPlatformTouched(false);
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 422) throw err;
+        // The page gave us nothing usable: continue with the text, keeping what the user already typed if there's no caption.
+        if (err.data?.caption) setText(err.data.caption);
+        setParsed(null);
+        setTab("text");
+        throw err;
+      }
+    });
   const save = () =>
     run(async () => {
       if (!parsed) return;
-      const { id } = await api.createRecipe({ ...parsed, source_url: normalizeLink(link), source_platform: platform });
+      const { id } = await api.createRecipe({ ...parsed, source_url: normalizeLink(link), source_platform: platform, image_url: imageUrl });
       navigate(`/rezept/${id}`);
     });
 
@@ -72,64 +94,104 @@ export default function AddRecipe() {
       </header>
 
       <div className="segmented">
-        <button disabled>
-          Link einfügen <span className="pill">Bald</span>
-        </button>
-        <button className="active" aria-pressed="true">
-          Text einfügen
-        </button>
-      </div>
-
-      <label className="field-label" htmlFor={textId}>
-        Caption oder Rezepttext
-      </label>
-      <textarea
-        id={textId}
-        className="field"
-        rows={6}
-        maxLength={10000}
-        readOnly={pending}
-        value={text}
-        onChange={(event) => {
-          setText(event.target.value);
-          setParsed(null);
-        }}
-      />
-
-      <p className="field-label" id="platform-label">
-        Quelle
-      </p>
-      <div className="chips add-chips" role="group" aria-labelledby="platform-label">
-        {PLATFORMS.map((value) => (
-          <button
-            key={value}
-            className={`chip${platform === value ? " active" : ""}`}
-            aria-pressed={platform === value}
-            onClick={() => pickPlatform(value)}
-          >
-            {platformLabel(value)}
+        {(["link", "text"] as const).map((value) => (
+          <button key={value} className={tab === value ? "active" : ""} aria-pressed={tab === value} onClick={() => setTab(value)}>
+            {value === "link" ? "Link einfügen" : "Text einfügen"}
           </button>
         ))}
       </div>
 
-      <label className="field-label meta" htmlFor={linkId}>
-        Link zum Original (optional)
-      </label>
-      <input
-        id={linkId}
-        className="field"
-        type="text"
-        inputMode="url"
-        autoCapitalize="none"
-        value={link}
-        onChange={(event) => changeLink(event.target.value)}
-      />
+      {tab === "link" && (
+        <>
+          <label className="field-label" htmlFor={importUrlId}>
+            Link zum Rezept
+          </label>
+          <input
+            id={importUrlId}
+            className="field"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            autoComplete="off"
+            readOnly={pending}
+            value={importUrl}
+            onChange={(event) => {
+              setImportUrl(event.target.value);
+              setParsed(null);
+            }}
+          />
+          {!parsed && (
+            <button className="primary-button inline" disabled={importUrl.trim() === "" || pending} onClick={importLink}>
+              {pending && <LoaderCircle className="spin" />}
+              {pending ? "Wird geladen …" : "Rezept laden"}
+            </button>
+          )}
+        </>
+      )}
 
-      {!parsed && (
-        <button className="primary-button inline" disabled={!canParse} onClick={parse}>
-          {pending && <LoaderCircle className="spin" />}
-          {pending ? "Wird erkannt …" : "Rezept erkennen"}
-        </button>
+      {tab === "text" && (
+        <>
+          <label className="field-label" htmlFor={textId}>
+            Caption oder Rezepttext
+          </label>
+          <textarea
+            id={textId}
+            className="field"
+            rows={6}
+            maxLength={10000}
+            readOnly={pending}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              setParsed(null);
+              setImageUrl(null);
+            }}
+          />
+        </>
+      )}
+
+      {(tab === "text" || parsed) && (
+        <>
+          <p className="field-label" id="platform-label">
+            Quelle
+          </p>
+          <div className="chips add-chips" role="group" aria-labelledby="platform-label">
+            {PLATFORMS.map((value) => (
+              <button
+                key={value}
+                className={`chip${platform === value ? " active" : ""}`}
+                aria-pressed={platform === value}
+                onClick={() => pickPlatform(value)}
+              >
+                {platformLabel(value)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "text" && (
+        <>
+          <label className="field-label meta" htmlFor={linkId}>
+            Link zum Original (optional)
+          </label>
+          <input
+            id={linkId}
+            className="field"
+            type="text"
+            inputMode="url"
+            autoCapitalize="none"
+            value={link}
+            onChange={(event) => changeLink(event.target.value)}
+          />
+
+          {!parsed && (
+            <button className="primary-button inline" disabled={!canParse} onClick={parse}>
+              {pending && <LoaderCircle className="spin" />}
+              {pending ? "Wird erkannt …" : "Rezept erkennen"}
+            </button>
+          )}
+        </>
       )}
 
       {error && (
@@ -140,6 +202,7 @@ export default function AddRecipe() {
 
       {parsed && (
         <section className="card preview">
+          {imageUrl && <img className="preview-image" src={imageUrl} alt="" onError={(event) => (event.currentTarget.hidden = true)} />}
           <div className="preview-head">
             <span className="check">
               <Check size={20} />
