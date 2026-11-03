@@ -2,7 +2,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { changedKeys, parseNumber } from "../lib/edit";
 import type { Merged } from "../../shared/merge";
 import type { Ingredient, IngredientValues, Step, StepValues } from "../../shared/schema";
-import { formatAmount } from "../../shared/format";
 
 type Values = IngredientValues | StepValues;
 
@@ -24,7 +23,7 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
   const ids = [useId(), useId(), useId()];
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient> | null) : null;
   const step = kind === "step" ? (item as Merged<Step> | null) : null;
-  const [amount, setAmount] = useState(formatAmount(ingredient?.amount ?? null));
+  const [amount, setAmount] = useState(String(ingredient?.amount ?? "").replace(".", ","));
   const [unit, setUnit] = useState(ingredient?.unit ?? "");
   const [name, setName] = useState(ingredient?.name ?? "");
   const [text, setText] = useState(step?.text ?? "");
@@ -53,7 +52,7 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
 
   return (
     <dialog ref={dialog} className="sheet" onClose={onClose} onClick={(event) => event.target === dialog.current && onClose()}>
-      <form onSubmit={submit}>
+      <form className="sheet-body" onSubmit={submit}>
         <h2>{title}</h2>
         {kind === "ingredient" ? (
           <>

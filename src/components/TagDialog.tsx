@@ -23,6 +23,7 @@ export default function TagDialog({ tags, onChange, onClose }: Props) {
 
   return (
     <dialog ref={dialog} className="sheet" onClose={onClose} onClick={(event) => event.target === dialog.current && onClose()}>
+      <div className="sheet-body">
       <h2>Tags</h2>
       <div className="tag-list">
         {tags.map((tag) => (
@@ -39,6 +40,7 @@ export default function TagDialog({ tags, onChange, onClose }: Props) {
         <input id={inputId} className="field" maxLength={30} value={draft} onChange={(e) => setDraft(e.target.value)} />
         <button type="submit" className="primary-button inline">Hinzufügen</button>
       </form>
+      </div>
     </dialog>
   );
 }

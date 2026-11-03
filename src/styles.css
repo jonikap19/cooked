@@ -755,11 +755,16 @@ a {
   width: 100%;
   max-width: 480px;
   margin: auto auto 0;
-  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  padding: 0;
   border: 0;
   border-radius: 24px 24px 0 0;
   background: var(--bg);
   color: var(--text);
+}
+
+/* Padding lives here, so a click whose target is the dialog itself is always the backdrop. */
+.sheet-body {
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
 }
 
 .sheet::backdrop {
