@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { recipes } from "./recipes";
 import { accessAuth, sameOrigin, securityHeaders } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
@@ -18,7 +19,9 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.use("/api/*", sameOrigin);
   app.use("/api/*", accessAuth(getJwks));
+  // all routes below are authenticated
   app.get("/api/me", (c) => c.json({ userId: c.var.userId }));
+  app.route("/", recipes);
 
   return app;
 }
