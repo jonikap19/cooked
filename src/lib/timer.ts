@@ -8,3 +8,22 @@ export function durationDiffLabel(original: number | null, current: number | nul
   const d = current - original;
   return `${d > 0 ? "+" : "−"}${Math.abs(d)} Min`;
 }
+
+export type TimerChip = { index: number; seconds: number | null };
+
+/** Timers running or finished on steps other than the current one; seconds is null once finished. */
+export function timerChips(
+  stepIds: string[],
+  timers: Record<string, { endAt: number | null }>,
+  currentIndex: number,
+  now: number,
+): TimerChip[] {
+  const chips: TimerChip[] = [];
+  stepIds.forEach((stepId, index) => {
+    const endAt = timers[stepId]?.endAt;
+    if (index === currentIndex || endAt == null) return;
+    const seconds = remainingSeconds(endAt, now);
+    chips.push({ index, seconds: seconds > 0 ? seconds : null });
+  });
+  return chips;
+}
