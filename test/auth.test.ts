@@ -1,6 +1,6 @@
-import { generateKeyPair } from "jose";
+import { base64url, generateKeyPair, SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
-import { authHeaders, signToken, testApp, testEnv, TEST_ORIGIN } from "./helpers";
+import { authHeaders, signToken, testApp, testEnv, TEST_AUD, TEST_ORIGIN, TEST_TEAM_DOMAIN } from "./helpers";
 
 const app = testApp();
 const get = (path: string, headers?: HeadersInit, e = testEnv()) => app.request(path, { headers }, e);
@@ -20,6 +20,18 @@ describe("accessAuth", () => {
     const t = await signToken("a@b.de", { audience: "other" });
     await unauth(await get("/api/me", { "Cf-Access-Jwt-Assertion": t }));
   });
+  it("rejects wrong issuer", async () => {
+    const t = await signToken("a@b.de", { issuer: "https://evil.cloudflareaccess.com" });
+    await unauth(await get("/api/me", { "Cf-Access-Jwt-Assertion": t }));
+  });
+  it("rejects HS256 and alg=none tokens", async () => {
+    const claims = { email: "a@b.de", iss: TEST_TEAM_DOMAIN, aud: TEST_AUD, exp: Math.floor(Date.now() / 1000) + 3600 };
+    const hs256 = await new SignJWT(claims).setProtectedHeader({ alg: "HS256" }).sign(new TextEncoder().encode("x".repeat(32)));
+    const part = (o: object) => base64url.encode(JSON.stringify(o));
+    const none = `${part({ alg: "none", typ: "JWT" })}.${part(claims)}.`;
+    for (const t of [hs256, none]) await unauth(await get("/api/me", { "Cf-Access-Jwt-Assertion": t }));
+  });
+  it("guards unknown /api routes too", async () => unauth(await get("/api/x")));
   it("rejects expired token", async () => {
     const t = await signToken("a@b.de", { expiresIn: Math.floor(Date.now() / 1000) - 60 });
     await unauth(await get("/api/me", { "Cf-Access-Jwt-Assertion": t }));
@@ -41,6 +53,7 @@ describe("accessAuth", () => {
   it("dev bypass works on localhost only", async () => {
     const e = testEnv({ DEV_USER_EMAIL: "Dev@Example.com" });
     const ok = await get("/api/me", undefined, e);
+    expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ userId: "dev@example.com" });
     await unauth(await app.request("https://cooked.example.workers.dev/api/me", {}, e));
   });
