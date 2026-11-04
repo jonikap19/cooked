@@ -35,7 +35,8 @@ function StepTimer({ step, minutes, fromText, state, now, onChange }: {
   };
   const click = () => {
     if (done) start(total);
-    else if (running) onChange({ endAt: null, remainingWhenPaused: remaining });
+    // Fresh clock: `now` can be up to a tick old.
+    else if (state.endAt !== null) onChange({ endAt: null, remainingWhenPaused: remainingSeconds(state.endAt, Date.now()) });
     else start(remaining);
   };
   const original = step.original?.duration_minutes ?? null;

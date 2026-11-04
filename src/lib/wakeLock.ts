@@ -18,7 +18,8 @@ export function useWakeLock(active: boolean): boolean {
         setHeld(false);
       }
     };
-    const onVisible = () => document.visibilityState === "visible" && void request();
+    // Browsers drop the lock when the page hides; only a released lock needs a new one.
+    const onVisible = () => document.visibilityState === "visible" && (!lock || lock.released) && void request();
     void request();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
