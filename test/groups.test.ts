@@ -99,6 +99,12 @@ describe("groups", () => {
     expect((await call(bob, `/api/invites/${gid}`, "DELETE")).status).toBe(404);
   });
 
+  it("rejects an over-long email", async () => {
+    const alice = user();
+    const gid = await createGroup(alice);
+    expect((await invite(alice, gid, `${"a".repeat(250)}@x.de`)).status).toBe(400);
+  });
+
   it("only the invited email can accept or decline", async () => {
     const [alice, bob, carol] = [user(), user(), user()];
     const gid = await createGroup(alice);
@@ -199,15 +205,17 @@ describe("share to group", () => {
     // stays off both Home lists
     for (const email of [alice, bob]) expect((await json<RecipeSummary[]>(call(email, "/api/recipes"))).map((r) => r.id)).not.toContain(copy);
 
-    await call(bob, `/api/recipes/${copy}`, "PATCH", { tags: ["Gruppe"] });
-    await call(bob, `/api/recipes/${copy}/note`, "PUT", { text: "Bob war hier" });
+    expect((await call(bob, `/api/recipes/${copy}`, "PATCH", { tags: ["Gruppe"] })).status).toBe(204);
+    expect((await call(bob, `/api/recipes/${copy}/note`, "PUT", { text: "Bob war hier" })).status).toBe(204);
     expect(await get(alice, personal)).toEqual(before);
 
     const groupedNow = await get(bob, copy);
-    await call(alice, `/api/recipes/${personal}`, "PATCH", { tags: ["Privat"] });
-    await call(alice, `/api/recipes/${personal}/adjustments`, "POST", {
-      target_type: "step", action: "add", target_id: null, new_values: { text: "Würzen", duration_minutes: null },
-    });
+    expect((await call(alice, `/api/recipes/${personal}`, "PATCH", { tags: ["Privat"] })).status).toBe(204);
+    expect(
+      (await call(alice, `/api/recipes/${personal}/adjustments`, "POST", {
+        target_type: "step", action: "add", target_id: null, new_values: { text: "Würzen", duration_minutes: null },
+      })).status,
+    ).toBe(201);
     expect(await get(bob, copy)).toEqual(groupedNow);
   });
 
@@ -231,8 +239,11 @@ describe("share to group", () => {
     expect((await call(alice, `/api/recipes/${mine}/share-to-group`, "POST", { group_id: notMine })).status).toBe(404);
     expect((await call(bob, `/api/recipes/${mine}/share-to-group`, "POST", { group_id: notMine })).status).toBe(404);
     expect((await call(alice, `/api/recipes/${mine}/share-to-group`, "POST", {})).status).toBe(400);
+    // a group recipe cannot be shared again
+    const copy = await shareToGroup(alice, mine, ownGroup);
+    expect((await call(alice, `/api/recipes/${copy}/share-to-group`, "POST", { group_id: ownGroup })).status).toBe(404);
     expect((await detail(bob, notMine)).recipes).toEqual([]);
-    expect((await detail(alice, ownGroup)).recipes).toEqual([]);
+    expect((await detail(alice, ownGroup)).recipes.map((r) => r.id)).toEqual([copy]);
   });
 });
 
@@ -277,9 +288,9 @@ describe("leaving", () => {
     await invite(alice, gid, carol);
     expect(await env.IMAGES.head(copies[0])).not.toBeNull();
 
-    await call(alice, `/api/groups/${gid}/members/me`, "DELETE");
+    expect((await call(alice, `/api/groups/${gid}/members/me`, "DELETE")).status).toBe(204);
     expect(await env.DB.prepare("SELECT 1 FROM groups WHERE id = ?").bind(gid).first()).not.toBeNull();
-    await call(bob, `/api/groups/${gid}/members/me`, "DELETE");
+    expect((await call(bob, `/api/groups/${gid}/members/me`, "DELETE")).status).toBe(204);
 
     const count = async (sql: string, ...binds: string[]) => (await env.DB.prepare(sql).bind(...binds).first<{ n: number }>())!.n;
     expect(await count("SELECT COUNT(*) AS n FROM groups WHERE id = ?", gid)).toBe(0);

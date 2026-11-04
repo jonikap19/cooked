@@ -136,6 +136,7 @@ groups.delete("/api/groups/:id/members/me", async (c) => {
     .bind(id)
     .run();
   if (gone.meta.changes && ids.length) {
+    // ponytail: R2 bulk delete takes ≤1000 keys; chunk if a group ever holds more.
     await IMAGES.delete(ids).catch((e) => console.warn("leave: image cleanup failed:", e instanceof Error ? e.name : "unknown"));
   }
   return c.body(null, 204);
@@ -149,6 +150,8 @@ groups.post("/api/recipes/:id/share-to-group", async (c) => {
   const recipeId = c.req.param("id");
   const groupId = parsed.data.group_id;
   if (!(await recipeAccess(DB, uid, recipeId)) || !(await isMember(DB, groupId, uid))) return c.json(notFound, 404);
+  // Only personal recipes can be shared into a group.
+  if (await DB.prepare("SELECT 1 FROM recipes WHERE id = ? AND group_id IS NOT NULL").bind(recipeId).first()) return c.json(notFound, 404);
   const snapshot = await snapshotRecipe(DB, recipeId, "with_comments");
   return c.json({ id: await insertSnapshot(c.env, snapshot, { userId: uid, groupId }) }, 201);
 });

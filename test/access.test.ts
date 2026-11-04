@@ -54,7 +54,7 @@ const leave = (gid: string, email: string) => env.DB.prepare("DELETE FROM group_
 type Req = [method: string, path: string, body?: unknown];
 // Every recipe-scoped route and the status the owner gets. Add a row per new recipe-scoped route.
 // `email` is the caller, for routes that also need something of the caller's own.
-const routes: { name: string; status: number; req: (f: Fixture, email: string) => Req | Promise<Req> }[] = [
+const routes: { name: string; status: number; groupStatus?: number; req: (f: Fixture, email: string) => Req | Promise<Req> }[] = [
   { name: "detail", status: 200, req: (f) => ["GET", `/api/recipes/${f.id}`] },
   { name: "tags", status: 204, req: (f) => ["PATCH", `/api/recipes/${f.id}`, { tags: ["Schnell"] }] },
   { name: "delete recipe", status: 204, req: (f) => ["DELETE", `/api/recipes/${f.id}`] },
@@ -77,7 +77,7 @@ const routes: { name: string; status: number; req: (f: Fixture, email: string) =
   { name: "cooked", status: 204, req: (f) => ["POST", `/api/recipes/${f.id}/cooked`, { items: [] }] },
   { name: "share", status: 201, req: (f) => ["POST", `/api/recipes/${f.id}/share`, { mode: "baked" }] },
   // The target is a group of the caller's own, so only access to the source decides.
-  { name: "share to group", status: 201, req: async (f, email) => ["POST", `/api/recipes/${f.id}/share-to-group`, { group_id: await groupOf(email) }] },
+  { name: "share to group", status: 201, groupStatus: 404, req: async (f, email) => ["POST", `/api/recipes/${f.id}/share-to-group`, { group_id: await groupOf(email) }] },
 ];
 
 const statusFor = async (email: string, f: Fixture, req: (typeof routes)[number]["req"]) => {
@@ -85,7 +85,7 @@ const statusFor = async (email: string, f: Fixture, req: (typeof routes)[number]
   return (await call(email, path, method, body)).status;
 };
 
-describe.each(routes)("access: $name", ({ status, req }) => {
+describe.each(routes)("access: $name", ({ status, groupStatus, req }) => {
   it("personal: the owner gets it, a group-mate of the owner gets 404", async () => {
     const [owner, mate] = [user(), user()];
     await groupOf(owner, mate);
@@ -97,7 +97,7 @@ describe.each(routes)("access: $name", ({ status, req }) => {
     const [creator, member] = [user(), user()];
     const f = await recipeOf(creator);
     await moveToGroup(f.id, await groupOf(creator, member));
-    expect(await statusFor(member, f, req)).toBe(status);
+    expect(await statusFor(member, f, req)).toBe(groupStatus ?? status);
   });
 
   it("group: a non-member gets 404", async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, messageOf, type Invite } from "../api";
+import { ApiError, api, messageOf, type Invite } from "../api";
 
 interface Props {
   onAccepted?(): void;
@@ -22,7 +22,7 @@ export default function Invites({ onAccepted }: Props) {
       await load();
       if (accept) onAccepted?.();
     } catch (err) {
-      setError(messageOf(err));
+      setError(accept && err instanceof ApiError && err.status === 400 ? "Beitritt nicht möglich" : messageOf(err));
     } finally {
       setBusy(false);
     }

@@ -115,6 +115,7 @@ export default function RecipeDetail() {
     const adjustment = adjustmentFor(itemId, action);
     return adjustment ? mutate(() => api.deleteAdjustment(id, adjustment.id)) : Promise.resolve(false);
   };
+  const backTo = recipe.group_id ? `/gruppen/${recipe.group_id}` : "/";
   const closeAfter = async (done: Promise<boolean>) => (await done) && setSheet(null);
 
   const togglePlanned = () =>
@@ -184,7 +185,7 @@ export default function RecipeDetail() {
         <RecipeImage src={recipe.image_url}>
           <span className="hero-label">Rezeptbild</span>
         </RecipeImage>
-        <Link to="/" className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
+        <Link to={backTo} className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
         <button className="source-pill share-pill" onClick={() => setSharing(true)}>
           <Share2 size={16} aria-hidden="true" /> Teilen
         </button>
@@ -281,7 +282,9 @@ export default function RecipeDetail() {
         )}
         <button
           className="text-button muted-button"
-          onClick={async () => confirm("Rezept wirklich löschen?") && (await mutate(() => api.deleteRecipe(id))) && navigate("/")}
+          onClick={async () => confirm(recipe.group_id ? "Rezept wirklich für alle Mitglieder löschen?" : "Rezept wirklich löschen?") &&
+            (await mutate(() => api.deleteRecipe(id))) &&
+            navigate(backTo)}
         >
           Rezept löschen
         </button>

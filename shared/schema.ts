@@ -168,7 +168,7 @@ export const ListCheckout = z.object({
 export const ListCooked = z.object({ items: z.array(PantryKey.extend({ amount: PantryAmount })).max(100) });
 
 export const GroupName = z.object({ name: z.string().trim().min(1).max(60) });
-export const GroupInvite = z.object({ email: z.string().trim().toLowerCase().pipe(z.email()) });
+export const GroupInvite = z.object({ email: z.string().trim().toLowerCase().max(254).pipe(z.email()) });
 export const ShareToGroup = z.object({ group_id: z.string().min(1).max(100) });
 
 export type ListBody = {

@@ -19,7 +19,9 @@ export default function GroupPicker({ groups, recipeId, onClose }: Props) {
     setBusy(true);
     setError("");
     try {
-      navigate(`/rezept/${(await api.shareToGroup(recipeId, groupId)).id}`);
+      const copy = await api.shareToGroup(recipeId, groupId);
+      onClose();
+      navigate(`/rezept/${copy.id}`);
     } catch (err) {
       setError(messageOf(err));
       setBusy(false);

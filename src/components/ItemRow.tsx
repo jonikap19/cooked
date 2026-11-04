@@ -26,8 +26,9 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
   const stepOriginal = step?.original ?? null;
 
   let subline = "";
-  if (status === "added") subline = `Von ${by} hinzugefügt`;
-  else if (status === "removed") subline = `Von ${by} entfernt`;
+  // On group recipes the "Geteilt von" line carries the attribution.
+  if (status === "added") subline = sharedBy ? "" : `Von ${by} hinzugefügt`;
+  else if (status === "removed") subline = sharedBy ? "" : `Von ${by} entfernt`;
   else if (status === "modified") {
     if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
     else if (step && stepOriginal) {

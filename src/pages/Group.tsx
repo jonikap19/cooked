@@ -32,7 +32,8 @@ export default function Group() {
   useEffect(load, [load]);
 
   const leave = async () => {
-    if (!confirm("Gruppe wirklich verlassen?")) return;
+    const last = group?.members.length === 1;
+    if (!confirm(last ? "Du bist das letzte Mitglied. Die Gruppe und ihre Rezepte werden gelöscht." : "Gruppe wirklich verlassen?")) return;
     try {
       await api.leaveGroup(id);
       navigate("/gruppen");

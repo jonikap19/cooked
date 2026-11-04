@@ -150,6 +150,7 @@ recipes.patch("/api/recipes/:id", async (c) => {
   if (!tags || tags.length > 10) return c.json(invalid, 400);
   const id = c.req.param("id");
   if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
+  // ponytail: access checked then written in two statements; fold into one WHERE if it matters.
   await c.env.DB.prepare("UPDATE recipes SET tags = ? WHERE id = ?").bind(JSON.stringify(tags), id).run();
   return c.body(null, 204);
 });
@@ -157,6 +158,7 @@ recipes.patch("/api/recipes/:id", async (c) => {
 recipes.delete("/api/recipes/:id", async (c) => {
   const id = c.req.param("id");
   if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
+  // ponytail: access checked then written in two statements; fold into one WHERE if it matters.
   await c.env.DB.prepare("DELETE FROM recipes WHERE id = ?").bind(id).run();
   await c.env.IMAGES.delete(id);
   return c.body(null, 204);

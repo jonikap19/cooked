@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Route, Routes, useParams } from "react-router";
 import { sessionStore } from "./api";
 import CookMode from "./pages/CookMode";
 import AddRecipe from "./pages/AddRecipe";
@@ -23,6 +23,12 @@ function SessionExpired() {
   );
 }
 
+// Keyed by id so sharing a recipe into a group (navigate to the copy) resets all detail state.
+function RecipeDetailRoute() {
+  const { id } = useParams();
+  return <RecipeDetail key={id} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -35,7 +41,7 @@ export default function App() {
         <Route path="/gruppen/:id" element={<Group />} />
         <Route path="/neu" element={<AddRecipe />} />
         <Route path="/neu/eigenes" element={<OwnRecipe />} />
-        <Route path="/rezept/:id" element={<RecipeDetail />} />
+        <Route path="/rezept/:id" element={<RecipeDetailRoute />} />
         <Route path="/teilen/:token" element={<SharedRecipe />} />
         <Route path="/rezept/:id/kochen" element={<CookMode />} />
       </Routes>
