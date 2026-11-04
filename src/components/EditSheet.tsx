@@ -9,7 +9,8 @@ interface Props {
   kind: "ingredient" | "step";
   item: Merged<Ingredient> | Merged<Step> | null; // null = new item
   servingsHint: number | null; // set when the stepper differs from the base servings
-  onSave(values: Values): void; // add: full values; added: full values; else only changed keys
+  note: string; // stored note of the ingredient; "" when none
+  onSave(values: Values | null, note: string | null): void; // values: add/added full, else only changed keys; null = unchanged. note: null = unchanged
   onReset(): void;
   onRemove(): void;
   onSplit(): void;
@@ -19,9 +20,9 @@ interface Props {
   busy: boolean;
 }
 
-export default function EditSheet({ kind, item, servingsHint, onSave, onReset, onRemove, onSplit, onDelete, onClose, serverError, busy }: Props) {
+export default function EditSheet({ kind, item, note: storedNote, servingsHint, onSave, onReset, onRemove, onSplit, onDelete, onClose, serverError, busy }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const ids = [useId(), useId(), useId()];
+  const ids = [useId(), useId(), useId(), useId()];
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient> | null) : null;
   const step = kind === "step" ? (item as Merged<Step> | null) : null;
   const [amount, setAmount] = useState(String(ingredient?.amount ?? "").replace(".", ","));
@@ -29,6 +30,7 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
   const [name, setName] = useState(ingredient?.name ?? "");
   const [text, setText] = useState(step?.text ?? "");
   const [duration, setDuration] = useState(step?.duration_minutes?.toString() ?? "");
+  const [note, setNote] = useState(storedNote);
   const [error, setError] = useState("");
 
   useEffect(() => dialog.current?.showModal(), []);
@@ -43,10 +45,12 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
       kind === "ingredient"
         ? { name: name.trim(), amount: parseNumber(amount), unit: unit.trim() }
         : { text: text.trim(), duration_minutes: parseNumber(duration) };
-    if (!item || item.status === "added") return onSave(next);
+    if (!item) return onSave(next, null);
     const changed = changedKeys(item as unknown as Values, next);
-    if (Object.keys(changed).length === 0) return onClose();
-    onSave(changed as Values);
+    const valuesChanged = Object.keys(changed).length > 0;
+    const noteChanged = ingredient !== null && note.trim() !== storedNote;
+    if (!valuesChanged && !noteChanged) return onClose();
+    onSave(valuesChanged ? (item.status === "added" ? next : (changed as Values)) : null, noteChanged ? note.trim() : null);
   };
 
   const title = `${kind === "ingredient" ? "Zutat" : "Schritt"} ${item ? "bearbeiten" : "hinzufügen"}`;
@@ -64,6 +68,12 @@ export default function EditSheet({ kind, item, servingsHint, onSave, onReset, o
             <input id={ids[1]} className="field" maxLength={30} value={unit} onChange={(e) => setUnit(e.target.value)} />
             <label className="field-label" htmlFor={ids[2]}>Name</label>
             <input id={ids[2]} className="field" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+            {ingredient && (
+              <>
+                <label className="field-label" htmlFor={ids[3]}>Notiz</label>
+                <textarea id={ids[3]} className="field" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              </>
+            )}
           </>
         ) : (
           <>

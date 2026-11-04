@@ -60,6 +60,8 @@ export const api = {
   deleteAdjustment: (id: string, adjustmentId: string) =>
     request<void>(`/api/recipes/${id}/adjustments/${adjustmentId}`, send("DELETE")),
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
+  saveIngredientNote: (id: string, targetId: string, text: string) =>
+    request<void>(`/api/recipes/${id}/ingredient-notes/${targetId}`, send("PUT", { text })),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),
   importLink: (url: string) =>
     request<{

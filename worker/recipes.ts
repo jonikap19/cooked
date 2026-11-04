@@ -7,7 +7,7 @@ import type { AppEnv } from "./auth";
 export const recipes = new Hono<AppEnv>();
 
 export const invalid = { error: "Ungültige Eingabe" };
-const notFound = { error: "Nicht gefunden" };
+export const notFound = { error: "Nicht gefunden" };
 
 const Tags = z.object({ tags: z.array(z.string()).max(10) });
 
@@ -108,13 +108,14 @@ recipes.get("/api/recipes/:id", async (c) => {
   const row = await DB.prepare("SELECT * FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first<RecipeRow>();
   if (!row) return c.json(notFound, 404);
   // recipe ownership was checked above, so child rows are safe to read by recipe_id
-  const [ing, steps, adj, note] = await DB.batch([
+  const [ing, steps, adj, note, ingredientNotes] = await DB.batch([
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare(
       "SELECT id, target_type, target_id, action, insert_after, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid",
     ).bind(id),
     DB.prepare("SELECT body FROM notes WHERE recipe_id = ?").bind(id),
+    DB.prepare("SELECT target_id, body, author, updated_at FROM ingredient_notes WHERE recipe_id = ? ORDER BY updated_at").bind(id),
   ]);
   const out: RecipeFull = {
     recipe: toRecipe(row),
@@ -125,6 +126,7 @@ recipes.get("/api/recipes/:id", async (c) => {
       new_values: a.new_values ? JSON.parse(a.new_values) : null,
     })),
     note: (note.results[0] as { body: string } | undefined)?.body ?? "",
+    ingredient_notes: ingredientNotes.results as RecipeFull["ingredient_notes"],
   };
   return c.json(out);
 });
@@ -152,7 +154,7 @@ const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, 
 type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
 const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });
 
-const ownsRecipe = async (c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string) =>
+export const ownsRecipe = async (c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string) =>
   !!(await c.env.DB.prepare("SELECT 1 AS x FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first());
 
 recipes.post("/api/recipes/:id/adjustments", async (c) => {
@@ -241,7 +243,16 @@ recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
 recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const rid = c.req.param("id");
   if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
-  const res = await c.env.DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(c.req.param("adjId"), rid).run();
+  const adjId = c.req.param("adjId");
+  // An added ingredient's note would be orphaned, so it goes first (while the subquery still sees the adjustment).
+  // Scoped to a real add adjustment: a 404 here must not delete the note of an original ingredient whose id was passed.
+  const [, res] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `DELETE FROM ingredient_notes WHERE recipe_id = ?1 AND target_id IN
+       (SELECT id FROM adjustments WHERE id = ?2 AND recipe_id = ?1 AND action = 'add' AND target_type = 'ingredient')`,
+    ).bind(rid, adjId),
+    c.env.DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(adjId, rid),
+  ]);
   return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
 });
 

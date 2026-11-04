@@ -111,13 +111,24 @@ export const RecipeSummary = Recipe.extend({
 });
 export type RecipeSummary = z.infer<typeof RecipeSummary>;
 
+export const IngredientNote = z.object({
+  target_id: z.string(),
+  body: z.string(),
+  author: z.string(),
+  updated_at: z.string(),
+});
+export type IngredientNote = z.infer<typeof IngredientNote>;
+
 export const RecipeFull = z.object({
   recipe: Recipe,
   ingredients: z.array(Ingredient),
   steps: z.array(Step),
   adjustments: z.array(Adjustment),
   note: z.string().max(5000),
+  ingredient_notes: z.array(IngredientNote),
 });
 export type RecipeFull = z.infer<typeof RecipeFull>;
 
 export const NoteBody = z.object({ text: z.string().max(5000) });
+
+export const NoteText = z.object({ text: z.string().trim().max(500) });

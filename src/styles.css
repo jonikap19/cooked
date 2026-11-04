@@ -714,6 +714,13 @@ a {
   font-size: 0.8rem;
 }
 
+.item-note {
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .step-number {
   flex: none;
   display: grid;

@@ -5,6 +5,7 @@ import type { Ingredient, Step } from "../../shared/schema";
 
 interface Props {
   item: Merged<Ingredient> | Merged<Step>;
+  note?: string; // ingredient note, shown muted: a note is not an adjustment
   kind: "ingredient" | "step";
   number?: number;
   scale: (n: number | null) => number | null;
@@ -14,7 +15,7 @@ interface Props {
   busy: boolean;
 }
 
-export default function ItemRow({ item, kind, number, scale, showOriginal, onEdit, onRestore, busy }: Props) {
+export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -46,6 +47,7 @@ export default function ItemRow({ item, kind, number, scale, showOriginal, onEdi
       <div className="item-body">
         <span className="item-main">{ingredient ? ingredient.name : step?.text}</span>
         {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
+        {note && <span className="item-note">{note}</span>}
         {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
       </div>
       {status === "removed" ? (

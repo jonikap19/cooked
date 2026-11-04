@@ -103,12 +103,23 @@ export default function RecipeDetail() {
   };
   const closeAfter = async (done: Promise<boolean>) => (await done) && setSheet(null);
 
-  const save = (values: object) => {
+  const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
+
+  const saveValues = (values: object) => {
+    const { kind, item } = sheet!;
+    if (!item) return api.addAdjustment(id, { target_type: kind, action: "add", target_id: null, new_values: values } as never);
+    if (item.status === "added") return api.updateAdjustment(id, item.id, values as never);
+    return api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as never);
+  };
+  // A note target is the merged row id: the ingredient id, or the add adjustment's id for added rows.
+  const save = (values: object | null, noteText: string | null) => {
     if (!sheet) return;
-    const { kind, item } = sheet;
-    if (!item) return closeAfter(mutate(() => api.addAdjustment(id, { target_type: kind, action: "add", target_id: null, new_values: values } as never)));
-    if (item.status === "added") return closeAfter(mutate(() => api.updateAdjustment(id, item.id, values as never)));
-    return closeAfter(mutate(() => api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as never)));
+    return closeAfter(
+      mutate(async () => {
+        if (values) await saveValues(values);
+        if (noteText !== null) await api.saveIngredientNote(id, sheet.item!.id, noteText);
+      }),
+    );
   };
 
   // Sequential, so the pieces keep their creation order. A failure stops the sequence; the refetch shows what was saved.
@@ -199,6 +210,7 @@ export default function RecipeDetail() {
               <ItemRow
                 key={item.id}
                 item={item}
+                note={tab === "ingredient" ? noteFor(item.id) : undefined}
                 kind={tab}
                 number={stepNumber}
                 scale={scale}
@@ -244,6 +256,7 @@ export default function RecipeDetail() {
         <EditSheet
           kind={sheet.kind}
           item={sheet.item}
+          note={sheet.kind === "ingredient" && sheet.item ? noteFor(sheet.item.id) : ""}
           servingsHint={servings !== recipe.servings ? recipe.servings : null}
           busy={busy}
           serverError={error}
