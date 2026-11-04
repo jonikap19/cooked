@@ -113,10 +113,17 @@ list.post("/api/list/checkout", async (c) => {
   if (!parsed.success) return c.json(invalid, 400);
   const { DB } = c.env;
   const uid = c.var.userId;
+  const [itemRows, tickRows] = await Promise.all([
+    DB.prepare("SELECT id, amount FROM list_items WHERE user_id = ?").bind(uid).all<Pick<Item, "id" | "amount">>(),
+    DB.prepare("SELECT line_key FROM list_ticks WHERE user_id = ?").bind(uid).all<{ line_key: string }>(),
+  ]);
+  const items = new Map(itemRows.results.map((i) => [`item:${i.id}`, i]));
+  const ticked = new Set(tickRows.results.map((t) => t.line_key));
+  // Only lines that are still ticked apply, and their ticks are cleared in the same batch below: a retry after a lost response finds no ticks and writes nothing.
   // Normalised so "1 l" and "1000 ml" mean the same for the Vorrat and for a typed item.
-  const lines = parsed.data.lines.map((l) => ({ key: l.key, canonical_name: l.canonical_name, ...toBase(l.amount, l.unit) }));
-  const { results } = await DB.prepare("SELECT id, amount FROM list_items WHERE user_id = ?").bind(uid).all<Pick<Item, "id" | "amount">>();
-  const items = new Map(results.map((i) => [`item:${i.id}`, i]));
+  const lines = parsed.data.lines
+    .filter((l) => ticked.has(l.key))
+    .map((l) => ({ key: l.key, canonical_name: l.canonical_name, ...toBase(l.amount, l.unit) }));
 
   // Exactly the confirmed amounts go into the Vorrat; a foreign or unknown item key only skips the item update below.
   const pantryWrites = await pantryStatements(
@@ -132,8 +139,8 @@ list.post("/api/list/checkout", async (c) => {
       ? [DB.prepare("DELETE FROM list_items WHERE id = ? AND user_id = ?").bind(item.id, uid)]
       : [DB.prepare("UPDATE list_items SET amount = ? WHERE id = ? AND user_id = ?").bind(item.amount - l.amount, item.id, uid)];
   });
-  // One batch is one D1 transaction: the Vorrat is never credited without the items and ticks being cleared, so a retry can't add twice.
-  await DB.batch([...pantryWrites, ...itemWrites, deleteTicks(DB, uid, lines.map((l) => l.key))]);
+  // One batch is one D1 transaction: the Vorrat is credited exactly when the ticks of those lines are cleared.
+  if (lines.length) await DB.batch([...pantryWrites, ...itemWrites, deleteTicks(DB, uid, lines.map((l) => l.key))]);
   return c.json(await listBody(c.env, uid));
 });
 
@@ -155,7 +162,8 @@ list.post("/api/recipes/:id/cooked", async (c) => {
   const changes = parsed.data.items
     .filter((i) => i.amount)
     .map((i) => ({ canonical_name: i.canonical_name, unit: i.unit, delta: i.amount, op: "subtract" as const }));
-  // One batch: the Vorrat is never reduced without the planned entry going, so a retry can't subtract twice.
+  // One batch, so the Vorrat is never reduced without the planned entry going.
+  // ponytail: a retry after a lost response subtracts again (the planned entry isn't a guard); add an idempotency key if that bites.
   await DB.batch([
     ...(await pantryStatements(DB, uid, changes)),
     DB.prepare("DELETE FROM planned_recipes WHERE user_id = ? AND recipe_id = ?").bind(uid, id),

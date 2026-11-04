@@ -32,6 +32,11 @@ describe("scaledNeeds", () => {
 });
 
 describe("computeShoppingList", () => {
+  it("rounds float residue so a covered need leaves no near-zero line", () => {
+    const needs = [need("Hefe", "g", 0.1, "A"), need("Hefe", "g", 0.2, "B")];
+    expect(computeShoppingList(needs, [stock("Hefe", "g", 0.3)], [])).toEqual([]);
+    expect(computeShoppingList(needs, [stock("Hefe", "g", 0.1)], [])[0].amount).toBe(0.2);
+  });
   it("sums needs of two recipes and subtracts stock", () => {
     const lines = computeShoppingList([need("Butter", "g", 50, "A"), need("Butter", "g", 30, "B")], [stock("Butter", "g", 20)], []);
     expect(lines).toEqual([

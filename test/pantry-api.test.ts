@@ -30,6 +30,14 @@ describe("pantry api", () => {
     expect(await list(u)).toHaveLength(1);
   });
 
+  it("adds a differently spelled post to the existing row and returns it", async () => {
+    const u = user();
+    await add(u, "Butter", 100, "g");
+    const res = await add(u, "butter", 50, "g");
+    expect(await res.json()).toEqual({ canonical_name: "Butter", unit: "g", amount: 150, always_at_home: false });
+    expect(await list(u)).toHaveLength(1);
+  });
+
   it("accepts a null amount on post and keeps an unknown-amount row intact", async () => {
     const u = user();
     expect(await (await add(u, "Salz", null, "g")).json()).toMatchObject({ amount: null });
@@ -99,7 +107,7 @@ describe("pantry api", () => {
 });
 
 describe("applyToPantry", () => {
-  it("removes a row when subtracting more than in stock, but keeps Immer da", async () => {
+  it("removes a row when subtracting more than in stock, and never subtracts from Immer da", async () => {
     const u = user();
     await add(u, "Mehl", 100, "g");
     await add(u, "Salz", 100, "g");
@@ -108,7 +116,7 @@ describe("applyToPantry", () => {
       { canonical_name: "Mehl", unit: "g", delta: 500, op: "subtract" },
       { canonical_name: "Salz", unit: "g", delta: 500, op: "subtract" },
     ]);
-    expect(await list(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 0, always_at_home: true }]);
+    expect(await list(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 100, always_at_home: true }]);
   });
 
   it("never creates a row on subtract, and adds create or sum", async () => {

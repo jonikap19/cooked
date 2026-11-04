@@ -55,7 +55,9 @@ export function computeShoppingList(needs: Need[], pantry: PantryItem[], typed: 
     const inStock = sameName.filter((row) => row.unit === unit);
     const needed = group.reduce<number | null>((sum, need) => addAmount(sum, need.amount), null);
     // A null need is covered by any stock row; a number is reduced by the summed stock (null stock takes nothing away).
-    const amount = needed === null ? null : subtractAmount(needed, inStock.reduce<number | null>((sum, row) => addAmount(sum, row.amount), null));
+    const rest = needed === null ? null : subtractAmount(needed, inStock.reduce<number | null>((sum, row) => addAmount(sum, row.amount), null));
+    // Rounded like toBase, so float residue (0.1 + 0.2 - 0.3) never shows as a near-zero line.
+    const amount = rest === null ? null : Math.round(rest * 1e6) / 1e6;
     if (needed === null ? inStock.length > 0 : amount === null || amount <= 0) continue;
 
     const others = sameName.filter((row) => row.unit !== unit);
