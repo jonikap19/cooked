@@ -30,11 +30,15 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
   if (status === "added") subline = sharedBy !== undefined ? "" : `Von ${by} hinzugefügt`;
   else if (status === "removed") subline = sharedBy !== undefined ? "" : `Von ${by} entfernt`;
   else if (status === "modified") {
-    if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
-    else if (step && stepOriginal) {
+    if (ingredient && original) {
+      // Name the part that changed: a name-only edit would otherwise repeat the current quantity.
+      const quantityChanged = ingredient.amount !== original.amount || ingredient.unit !== original.unit;
+      subline = `Geändert · Original ${quantityChanged ? formatQuantity(scale(original.amount), original.unit) || "ohne Menge" : original.name}`;
+    } else if (step && stepOriginal) {
+      const minutes = stepOriginal.duration_minutes;
       subline =
-        step.duration_minutes !== stepOriginal.duration_minutes
-          ? `Geändert · Original ${stepOriginal.duration_minutes ?? "ohne"} Min`
+        step.duration_minutes !== minutes
+          ? `Geändert · Original ${minutes === null ? "ohne Dauer" : `${minutes} Min`}`
           : "Geändert · Originaltext";
     }
   }
@@ -52,7 +56,7 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
         {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
         {note && <span className="item-note">{note}</span>}
         {sharedBy && <span className="meta small">Geteilt von {sharedBy}</span>}
-        {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
+        {subline && <span className="item-sub">{subline}</span>}
       </div>
       {!onEdit ? null : status === "removed" ? (
         <button className="restore" disabled={busy} onClick={onRestore}>
