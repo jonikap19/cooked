@@ -64,6 +64,10 @@ export default function RecipeDetail() {
     api.listGroups().then(setGroups, () => {});
   }, []);
 
+  const showError = (err: unknown) => {
+    if (err instanceof ApiError) setError(err.message);
+    else if (!(err instanceof SessionExpiredError)) setError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+  };
   // Runs a mutation, refetches, and surfaces the server's message; returns true on success.
   const mutate = async (action: () => Promise<unknown>): Promise<boolean> => {
     if (busy) return false;
@@ -74,8 +78,7 @@ export default function RecipeDetail() {
       await load();
       return true;
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else if (!(err instanceof SessionExpiredError)) setError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+      showError(err);
       return false;
     } finally {
       setBusy(false);
@@ -275,13 +278,15 @@ export default function RecipeDetail() {
           placeholder="Was möchtest du dir merken?"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onBlur={() => note.trim() !== full.note && void mutate(() => api.saveNote(id, note.trim()))}
+          // Not through mutate: its busy guard would drop a blur that lands during another save. A note PUT is idempotent, so overlap is harmless.
+          onBlur={() => note.trim() !== full.note && void api.saveNote(id, note.trim()).then(load, showError)}
         />
         {!recipe.group_id && groups.length > 0 && (
           <button className="add-item" onClick={() => setPicking(true)}>In Gruppe teilen</button>
         )}
         <button
           className="text-button muted-button"
+          disabled={busy}
           onClick={async () => confirm(recipe.group_id ? "Rezept wirklich für alle Mitglieder löschen?" : "Rezept wirklich löschen?") &&
             (await mutate(() => api.deleteRecipe(id))) &&
             navigate(backTo)}
@@ -327,6 +332,7 @@ export default function RecipeDetail() {
       {tagsOpen && (
         <TagDialog
           tags={recipe.tags}
+          busy={busy}
           onChange={(tags) => void mutate(() => api.updateTags(id, tags))}
           onClose={() => setTagsOpen(false)}
         />
