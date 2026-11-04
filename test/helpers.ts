@@ -22,7 +22,23 @@ export async function signToken(
     .sign(opts.key ?? privateKey);
 }
 
-export const testApp = () => buildApp(() => createLocalJWKSet({ keys: [publicJwk] }));
+/** Like the real app, but waitUntil work (background matching) finishes before the response is returned. */
+export function testApp() {
+  const app = buildApp(() => createLocalJWKSet({ keys: [publicJwk] }));
+  const request = app.request;
+  app.request = async (input, init, env) => {
+    const pending: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException: () => {}, props: {} };
+    const res = await request(input, init, env, ctx as unknown as ExecutionContext);
+    await Promise.all(pending);
+    return res;
+  };
+  return app;
+}
+
+// Tests never reach the real AI: by default it maps nothing, so background matching falls back quietly.
+const noAi = { run: async () => ({ response: { items: [] } }) } as unknown as Ai;
+const allowAll = { limit: async () => ({ success: true }) } as unknown as RateLimit;
 
 // DEV_USER_EMAIL is cleared so the localhost bypass never leaks into normal tests.
 export const testEnv = (overrides: Partial<Env> = {}): Env => ({
@@ -30,6 +46,8 @@ export const testEnv = (overrides: Partial<Env> = {}): Env => ({
   TEAM_DOMAIN: TEST_TEAM_DOMAIN,
   POLICY_AUD: TEST_AUD,
   DEV_USER_EMAIL: undefined,
+  AI: noAi,
+  PARSE_LIMIT: allowAll,
   ...overrides,
 });
 

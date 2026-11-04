@@ -132,3 +132,6 @@ export type RecipeFull = z.infer<typeof RecipeFull>;
 export const NoteBody = z.object({ text: z.string().max(5000) });
 
 export const NoteText = z.object({ text: z.string().trim().max(500) });
+
+// An ingredient's standard name and unit; target_id is an original ingredient id or an 'add' adjustment id.
+export type Match = { target_id: string; canonical_name: string; unit: string };
