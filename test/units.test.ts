@@ -10,6 +10,10 @@ describe("units", () => {
     expect(toBase(300, "mg")).toEqual({ amount: 0.3, unit: "g" });
     expect(toBase(7, "mg")).toEqual({ amount: 0.007, unit: "g" });
   });
+  it("keeps prototype-like units as typed", () => {
+    expect(normalizeUnit("constructor")).toEqual({ unit: "constructor", factor: 1 });
+    expect(toBase(2, "__proto__")).toEqual({ amount: 2, unit: "__proto__" });
+  });
   it("keeps base and other units", () => {
     expect(toBase(1, "")).toEqual({ amount: 1, unit: "Stück" });
     expect(toBase(2, "Bund")).toEqual({ amount: 2, unit: "Bund" });

@@ -99,6 +99,11 @@ describe("matchRecipe", () => {
     expect((await matchRecipe(envWith(ai), u, r.id)).map((m) => m.target_id)).toEqual([r.ids[1], addId]);
   });
 
+  it("falls back when the rate limiter binding throws", async () => {
+    const throwing = { limit: async () => { throw new Error("binding down"); } } as unknown as RateLimit;
+    expect(await matchName(envWith(fakeAi().ai, throwing), user(), "Mehl", "kg")).toEqual({ canonical_name: "Mehl", unit: "g" });
+  });
+
   it("uses an alias without calling the AI, but never another user's alias", async () => {
     const u = user();
     const other = user();

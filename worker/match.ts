@@ -47,11 +47,11 @@ async function knownNames(DB: D1Database, userId: string): Promise<string[]> {
 async function aiMatch(env: Env, userId: string, inputs: Input[]): Promise<Map<string, Canonical>> {
   const out = new Map<string, Canonical>();
   if (!inputs.length) return out;
-  const { success } = await env.PARSE_LIMIT.limit({ key: userId });
-  if (!success) return out;
-  const known = await knownNames(env.DB, userId);
   const wanted = new Set(inputs.map((i) => i.name));
   try {
+    const { success } = await env.PARSE_LIMIT.limit({ key: userId });
+    if (!success) return out;
+    const known = await knownNames(env.DB, userId);
     const res = (await env.AI.run(MODEL, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

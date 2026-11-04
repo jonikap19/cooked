@@ -11,7 +11,9 @@ const CONVERTIBLE: Record<string, { unit: string; factor: number }> = {
 export function normalizeUnit(unit: string): { unit: string; factor: number } {
   const trimmed = unit.trim();
   if (trimmed === "") return { unit: "Stück", factor: 1 };
-  return CONVERTIBLE[trimmed.toLowerCase()] ?? { unit: trimmed, factor: 1 };
+  const key = trimmed.toLowerCase();
+  // hasOwn: user-typed units like "constructor" must not hit Object.prototype.
+  return (Object.hasOwn(CONVERTIBLE, key) ? CONVERTIBLE[key] : undefined) ?? { unit: trimmed, factor: 1 };
 }
 
 export function toBase(amount: number | null, unit: string): { amount: number | null; unit: string } {
