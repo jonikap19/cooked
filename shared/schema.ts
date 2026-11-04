@@ -142,7 +142,8 @@ const PantryName = z.string().trim().min(1).max(100);
 const PantryUnit = z.string().trim().max(30);
 const PantryAmount = z.number().min(0).max(100000).nullable();
 
-export const PantryAdd = z.object({ name: PantryName, amount: PantryAmount, unit: PantryUnit });
+// Adding needs a positive amount; PATCH may set 0, which deletes the item.
+export const PantryAdd = z.object({ name: PantryName, amount: PantryAmount.pipe(z.number().positive().nullable()), unit: PantryUnit });
 export const PantryKey = z.object({ canonical_name: PantryName, unit: PantryUnit });
 export const PantryEdit = PantryKey.extend({
   set: z.object({

@@ -65,8 +65,7 @@ pantry.post("/api/pantry", async (c) => {
   const base = toBase(amount, unit);
   await applyToPantry(DB, uid, [{ canonical_name, unit: base.unit, delta: base.amount, op: "add" }]);
   const row = await DB.prepare(`${SELECT} AND canonical_name = ? AND unit = ?`).bind(uid, canonical_name, base.unit).first<Row>();
-  // An amount of 0 on a non-"Immer da" item leaves no row.
-  return row ? c.json(toItem(row)) : c.body(null, 204);
+  return c.json(toItem(row!));
 });
 
 pantry.patch("/api/pantry", async (c) => {
@@ -75,21 +74,23 @@ pantry.patch("/api/pantry", async (c) => {
   const { DB } = c.env;
   const uid = c.var.userId;
   const { set } = parsed.data;
-  const current = await DB.prepare(`${SELECT} AND canonical_name = ? AND unit = ?`)
-    .bind(uid, parsed.data.canonical_name, parsed.data.unit)
-    .first<Row>();
+  const amountOf = (set.amount !== undefined);
+  // One read for both the edited row and a possible collision target; the target key is only known after computing.
+  const target0 = { name: set.canonical_name ?? parsed.data.canonical_name, unit: set.unit === undefined ? parsed.data.unit : toBase(null, set.unit).unit };
+  const { results } = await DB.prepare(`${SELECT} AND ((canonical_name = ? AND unit = ?) OR (canonical_name = ? AND unit = ?))`)
+    .bind(uid, parsed.data.canonical_name, parsed.data.unit, target0.name, target0.unit)
+    .all<Row>();
+  const pick = (name: string, unit: string) => results.find((r) => r.canonical_name === name && r.unit === unit);
+  const current = pick(parsed.data.canonical_name, parsed.data.unit);
   if (!current) return c.json(notFound, 404);
 
-  const amount = set.amount !== undefined ? set.amount : current.amount;
+  const amount = amountOf ? set.amount! : current.amount;
   const edited: Row = {
-    canonical_name: set.canonical_name ?? current.canonical_name,
+    canonical_name: target0.name,
     ...(set.unit === undefined ? { unit: current.unit, amount } : toBase(amount, set.unit)),
     always_at_home: set.always_at_home === undefined ? current.always_at_home : set.always_at_home ? 1 : 0,
   };
-  const target =
-    keyOf(edited.canonical_name, edited.unit) === keyOf(current.canonical_name, current.unit)
-      ? null
-      : await DB.prepare(`${SELECT} AND canonical_name = ? AND unit = ?`).bind(uid, edited.canonical_name, edited.unit).first<Row>();
+  const target = keyOf(edited.canonical_name, edited.unit) === keyOf(current.canonical_name, current.unit) ? undefined : pick(edited.canonical_name, edited.unit);
   const final: Row = target
     ? { ...edited, amount: addAmount(target.amount, edited.amount), always_at_home: target.always_at_home | edited.always_at_home }
     : edited;

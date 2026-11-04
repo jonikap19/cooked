@@ -30,6 +30,12 @@ describe("pantry api", () => {
     expect(await list(u)).toHaveLength(1);
   });
 
+  it("accepts a null amount on post and keeps an unknown-amount row intact", async () => {
+    const u = user();
+    expect(await (await add(u, "Salz", null, "g")).json()).toMatchObject({ amount: null });
+    expect(await (await add(u, "Salz", null, "g")).json()).toMatchObject({ amount: null });
+  });
+
   it("sorts by name and keeps users apart", async () => {
     const [a, b] = [user(), user()];
     await add(a, "Zucker", 1, "g");
@@ -42,6 +48,7 @@ describe("pantry api", () => {
     const u = user();
     expect((await add(u, "  ", 1, "g")).status).toBe(400);
     expect((await add(u, "Mehl", -1, "g")).status).toBe(400);
+    expect((await add(u, "Mehl", 0, "g")).status).toBe(400);
     expect((await add(u, "Mehl", 1, "x".repeat(31))).status).toBe(400);
     expect((await patch(u, "Mehl", "g", { amount: 100001 })).status).toBe(400);
   });
