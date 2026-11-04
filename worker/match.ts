@@ -117,11 +117,13 @@ export async function matchRecipe(env: Env, userId: string, recipeId: string): P
     await DB.batch(
       stale.map((i) => {
         const m = fresh.get(i.id)!;
+        // The WHERE only rewrites a fallback or a changed spelling (the same rule as "stale" above), so an in-flight match never overwrites a PUT /api/aliases correction.
         return DB.prepare(
           `INSERT INTO ingredient_matches (recipe_id, target_id, user_id, source_name, canonical_name, unit, fallback, matched_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ${ISO_NOW})
            ON CONFLICT (recipe_id, target_id, user_id) DO UPDATE SET source_name = excluded.source_name,
-             canonical_name = excluded.canonical_name, unit = excluded.unit, fallback = excluded.fallback, matched_at = excluded.matched_at`,
+             canonical_name = excluded.canonical_name, unit = excluded.unit, fallback = excluded.fallback, matched_at = excluded.matched_at
+           WHERE ingredient_matches.fallback = 1 OR ingredient_matches.source_name <> excluded.source_name`,
         ).bind(recipeId, i.id, userId, i.name, m.canonical_name, m.unit, m.fallback);
       }),
     );

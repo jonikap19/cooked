@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { addAmount, subtractAmount } from "../shared/pantry";
 import { PantryAdd, PantryEdit, PantryKey, type PantryItem } from "../shared/schema";
-import { toBase } from "../shared/units";
+import { nameKey, toBase } from "../shared/units";
 import type { AppEnv } from "./auth";
 import { matchName } from "./match";
 import { invalid, notFound, readJson } from "./recipes";
@@ -25,35 +25,45 @@ const upsert = (db: D1Database, userId: string, r: Row) =>
 const remove = (db: D1Database, userId: string, name: string, unit: string) =>
   db.prepare("DELETE FROM pantry_items WHERE user_id = ? AND canonical_name = ? AND unit = ?").bind(userId, name, unit);
 
-/** Applies all changes in order from one read, written as one atomic batch. Never creates a row on subtract. */
-export async function applyToPantry(db: D1Database, userId: string, changes: Change[]): Promise<void> {
-  if (!changes.length) return;
+/** The writes for all changes, applied in order from one read; batch them with other writes to stay atomic. Never creates a row on subtract. */
+export async function pantryStatements(db: D1Database, userId: string, changes: Change[]): Promise<D1PreparedStatement[]> {
+  if (!changes.length) return [];
   // ponytail: read-then-write, so concurrent edits of the same row can lose an update (fine for a few users); use a conditional UPDATE or single-statement SQL upsert if it matters.
   // ponytail: reads the user's whole Vorrat; fine for a few hundred rows, filter by key if it grows.
   const { results } = await db.prepare(SELECT).bind(userId).all<Row>();
-  const rows = new Map(results.map((r) => [keyOf(r.canonical_name, r.unit), r]));
+  // Looked up by nameKey, so "butter" finds the stored "Butter" and writes keep the stored spelling.
+  const lookup = (name: string, unit: string) => `${nameKey(name)}|${unit}`;
+  const rows = new Map(results.map((r) => [lookup(r.canonical_name, r.unit), r]));
   const touched = new Set<string>();
   for (const c of changes) {
-    const key = keyOf(c.canonical_name, c.unit);
+    const key = lookup(c.canonical_name, c.unit);
     const row = rows.get(key);
-    if (!row && c.op === "subtract") continue;
+    if (c.op === "subtract" && (!row || row.always_at_home)) continue; // "Immer da" is never used up
     const amount = c.op === "add" ? addAmount(row?.amount ?? null, c.delta) : subtractAmount(row!.amount, c.delta);
-    rows.set(key, { canonical_name: c.canonical_name, unit: c.unit, amount, always_at_home: row?.always_at_home ?? 0 });
+    rows.set(key, { canonical_name: row?.canonical_name ?? c.canonical_name, unit: c.unit, amount, always_at_home: row?.always_at_home ?? 0 });
     touched.add(key);
   }
-  const writes = [...touched].map((key) => {
+  return [...touched].map((key) => {
     const r = rows.get(key)!;
     return isGone(r) ? remove(db, userId, r.canonical_name, r.unit) : upsert(db, userId, r);
   });
+}
+
+/** pantryStatements written as one atomic batch. */
+export async function applyToPantry(db: D1Database, userId: string, changes: Change[]): Promise<void> {
+  const writes = await pantryStatements(db, userId, changes);
   if (writes.length) await db.batch(writes);
+}
+
+/** The user's whole Vorrat, sorted by name. */
+export async function readPantry(db: D1Database, userId: string): Promise<PantryItem[]> {
+  const { results } = await db.prepare(SELECT).bind(userId).all<Row>();
+  return results.map(toItem).sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "de"));
 }
 
 export const pantry = new Hono<AppEnv>();
 
-pantry.get("/api/pantry", async (c) => {
-  const { results } = await c.env.DB.prepare(SELECT).bind(c.var.userId).all<Row>();
-  return c.json(results.map(toItem).sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "de")));
-});
+pantry.get("/api/pantry", async (c) => c.json(await readPantry(c.env.DB, c.var.userId)));
 
 pantry.post("/api/pantry", async (c) => {
   const parsed = PantryAdd.safeParse(await readJson(c));
@@ -65,8 +75,9 @@ pantry.post("/api/pantry", async (c) => {
   const { canonical_name } = await matchName(c.env, uid, name, unit);
   const base = toBase(amount, unit);
   await applyToPantry(DB, uid, [{ canonical_name, unit: base.unit, delta: base.amount, op: "add" }]);
-  const row = await DB.prepare(`${SELECT} AND canonical_name = ? AND unit = ?`).bind(uid, canonical_name, base.unit).first<Row>();
-  return c.json(toItem(row!));
+  // Found by nameKey like pantryStatements, since an existing row keeps its stored spelling.
+  const item = (await readPantry(DB, uid)).find((r) => nameKey(r.canonical_name) === nameKey(canonical_name) && r.unit === base.unit);
+  return c.json(item!);
 });
 
 pantry.patch("/api/pantry", async (c) => {

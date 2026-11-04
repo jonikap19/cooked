@@ -4,21 +4,10 @@ import { sessionStore } from "./api";
 import CookMode from "./pages/CookMode";
 import AddRecipe from "./pages/AddRecipe";
 import OwnRecipe from "./pages/OwnRecipe";
-import TabBar from "./components/TabBar";
 import Home from "./pages/Home";
 import Pantry from "./pages/Pantry";
+import ShoppingList from "./pages/ShoppingList";
 import RecipeDetail from "./pages/RecipeDetail";
-
-// ponytail: placeholder until the shopping list phase.
-function ShoppingList() {
-  return (
-    <main className="page with-tabs">
-      <h1>Einkaufsliste</h1>
-      <p className="empty">Kommt bald</p>
-      <TabBar />
-    </main>
-  );
-}
 
 function SessionExpired() {
   const expired = useSyncExternalStore(sessionStore.subscribe, sessionStore.isExpired);

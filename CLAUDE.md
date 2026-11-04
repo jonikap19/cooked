@@ -10,6 +10,10 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-04 — Spec deviation: shopping-list and cooked amounts stay in the recipe ingredient's own unit (after kg→g etc.); the AI's standard unit (`ingredient_matches.unit`) is stored but unused. Why: amounts never cross units.
+- 2026-11-04 — Spec deviation: match corrections are offered on recipe lines only (one alias per source spelling); typed list items are fixed by deleting and re-adding. Why: typed items have no recipe spelling to alias.
+- 2026-11-04 — Spec deviation: checkout accepts 0 ("bought none"); a typed item with an unknown amount, or checked out with an unknown amount, is deleted. Checkout only applies lines that are still ticked, so a retry can't add twice. Why: the spec only covers numeric partial buys.
+- 2026-11-04 — Spec deviation: the last cooking step's "Fertig" became "Fertig gekocht" (closing the sheet or the top exit leaves without subtracting); a cooked submit with no items still removes the planned entry. Why: one exit, and the sheet is the only path that touches the Vorrat.
 - 2026-11-04 — Spec deviation: renaming a Vorrat item is a plain edit and does not teach the matcher (no alias). Why: a Vorrat row has no source spelling; aliasing its old name would rewrite every recipe ingredient spelled that way. Corrections from the shopping list will teach it.
 - 2026-11-04 — Spec deviation: a typed Vorrat item keeps the unit it was typed in (after kg→g etc.); the matcher supplies only the name. Why: amounts never cross units.
 - 2026-11-04 — Spec deviation: ingredient notes are not shown in cooking mode. Why: CookMode has no ingredient list; add them with one later.
