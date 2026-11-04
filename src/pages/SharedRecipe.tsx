@@ -1,22 +1,21 @@
 import { ChevronLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { ApiError, api, messageOf } from "../api";
+import { ApiError, api, messageOf, type SharedPreview } from "../api";
 import ItemRow from "../components/ItemRow";
 import RecipeImage from "../components/RecipeImage";
 import { countLabel, placeholderColor, platformLabel } from "../../shared/format";
 import { mergeRecipe } from "../../shared/merge";
-import type { Snapshot } from "../../worker/copy";
 import type { RecipeFull } from "../../shared/schema";
 
 // The snapshot has no id, timestamp or servable image; mergeRecipe never reads them.
-const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_notes }: Snapshot): RecipeFull => ({
+const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_notes }: SharedPreview): RecipeFull => ({
   recipe: { ...recipe, id: "", created_at: "", image_url: null },
   ingredients,
   steps,
   adjustments,
   note,
-  ingredient_notes,
+  ingredient_notes: ingredient_notes.map((n) => ({ ...n, author: "" })),
 });
 
 export default function SharedRecipe() {
@@ -51,6 +50,7 @@ export default function SharedRecipe() {
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
   const meta = [
     recipe.source_platform && platformLabel(recipe.source_platform),
+    countLabel(recipe.servings, "Portion", "Portionen"),
     recipe.total_minutes && `${recipe.total_minutes} Min gesamt`,
   ].filter(Boolean).join(" · ");
   const rows = tab === "ingredient" ? merged.ingredients : merged.steps;

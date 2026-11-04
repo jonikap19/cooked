@@ -10,6 +10,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-04 — Phase H carry-over: the share preview strips `author` only from ingredient_notes — extend it to any new author fields (with a no-'@' test); insertSnapshot must default new fields for payloads created before the Phase H deploy (they live 24 h + 7 d); route loadRecipeUnchecked callers through the single access check. Why: final Phase G review.
 - 2026-11-04 — Spec deviation: shopping-list and cooked amounts stay in the recipe ingredient's own unit (after kg→g etc.); the AI's standard unit (`ingredient_matches.unit`) is stored but unused. Why: amounts never cross units.
 - 2026-11-04 — Spec deviation: match corrections are offered on recipe lines only (one alias per source spelling); typed list items are fixed by deleting and re-adding. Why: typed items have no recipe spelling to alias.
 - 2026-11-04 — Spec deviation: checkout accepts 0 ("bought none"); a typed item with an unknown amount, or checked out with an unknown amount, is deleted. Checkout only applies lines that are still ticked, so a retry can't add twice. Why: the spec only covers numeric partial buys.
@@ -31,6 +32,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Learnings
 
+- 2026-11-04 — Share tokens travel in the URL path; enabling Workers observability/request logging would log them for their 24 h life. Why: rules forbid logging URLs.
 - 2026-11-03 — `adjustments.insert_after` places added items after an original, ordered by `created_at, rowid` (ids are random UUIDs). Why: UUIDs give no stable order.
 - 2026-11-03 — The `cooked-images` R2 bucket must exist before deploy; `wrangler deploy` fails otherwise. Why: the Worker binds it.
 - 2026-11-03 — Tmp import images live in R2 `tmp/<uuid>` with `customMetadata.owner`, moved to `<recipeId>` on save. Why: the recipe id does not exist yet at import time.
