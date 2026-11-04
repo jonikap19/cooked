@@ -48,6 +48,7 @@ export const testEnv = (overrides: Partial<Env> = {}): Env => ({
   DEV_USER_EMAIL: undefined,
   AI: noAi,
   PARSE_LIMIT: allowAll,
+  SOCIAL_LIMIT: allowAll,
   ...overrides,
 });
 
