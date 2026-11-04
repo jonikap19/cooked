@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { recipes } from "./recipes";
 import { parse } from "./parse";
+import { notes } from "./notes";
 import { split } from "./split";
 import { importLink } from "./import";
 import { accessAuth, sameOrigin, securityHeaders, type AppEnv } from "./auth";
@@ -32,6 +33,7 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.route("/", recipes);
   app.route("/", parse);
   app.route("/", split);
+  app.route("/", notes);
   app.route("/", importLink);
 
   return app;
