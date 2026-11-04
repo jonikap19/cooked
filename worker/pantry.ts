@@ -48,12 +48,15 @@ export async function applyToPantry(db: D1Database, userId: string, changes: Cha
   if (writes.length) await db.batch(writes);
 }
 
+/** The user's whole Vorrat, sorted by name. */
+export async function readPantry(db: D1Database, userId: string): Promise<PantryItem[]> {
+  const { results } = await db.prepare(SELECT).bind(userId).all<Row>();
+  return results.map(toItem).sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "de"));
+}
+
 export const pantry = new Hono<AppEnv>();
 
-pantry.get("/api/pantry", async (c) => {
-  const { results } = await c.env.DB.prepare(SELECT).bind(c.var.userId).all<Row>();
-  return c.json(results.map(toItem).sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "de")));
-});
+pantry.get("/api/pantry", async (c) => c.json(await readPantry(c.env.DB, c.var.userId)));
 
 pantry.post("/api/pantry", async (c) => {
   const parsed = PantryAdd.safeParse(await readJson(c));

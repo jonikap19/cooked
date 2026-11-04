@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ShoppingLine } from "./shopping";
 
 const Platform = z.enum(["instagram", "youtube", "web"]);
 
@@ -153,3 +154,16 @@ export const PantryEdit = PantryKey.extend({
     always_at_home: z.boolean().optional(),
   }),
 });
+
+export const ListRecipeAdd = z.object({ recipe_id: z.string().min(1).max(100), servings: z.number().int().min(1).max(100) });
+export const ListTick = z.object({ key: z.string().min(1).max(200), ticked: z.boolean() });
+// Amounts are what the user confirmed: never negative, because applyToPantry does not guard against it.
+export const ListCheckout = z.object({
+  lines: z.array(PantryKey.extend({ key: z.string().min(1).max(200), amount: PantryAmount })).min(1).max(200),
+});
+
+export type ListBody = {
+  lines: ShoppingLine[];
+  ticked: string[];
+  planned: { recipe_id: string; title: string; servings: number }[];
+};
