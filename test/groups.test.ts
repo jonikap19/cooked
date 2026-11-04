@@ -99,10 +99,14 @@ describe("groups", () => {
     expect((await call(bob, `/api/invites/${gid}`, "DELETE")).status).toBe(404);
   });
 
-  it("rejects an over-long email", async () => {
+  it("caps the email at 254 characters", async () => {
     const alice = user();
     const gid = await createGroup(alice);
-    expect((await invite(alice, gid, `${"a".repeat(250)}@x.de`)).status).toBe(400);
+    // Short local part and 63-char labels, so only the overall length can reject it.
+    const emailOfLength = (n: number) => `a@${["b".repeat(63), "b".repeat(63), "b".repeat(63), "b".repeat(n - 2 - 63 * 3 - 3)].join(".")}`;
+    expect(emailOfLength(254)).toHaveLength(254);
+    expect((await invite(alice, gid, emailOfLength(254))).status).toBe(204);
+    expect((await invite(alice, gid, emailOfLength(255))).status).toBe(400);
   });
 
   it("only the invited email can accept or decline", async () => {
