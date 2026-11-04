@@ -4,6 +4,15 @@ export function parseNumber(raw: string): number | null {
   return raw.trim() === "" || Number.isNaN(value) ? null : value;
 }
 
+// Amount field of a Vorrat sheet: empty = "etwas" (null); otherwise a positive number.
+// A zero is only valid when editing an "Immer da" row, which stays at 0 instead of being deleted.
+export function pantryAmount(raw: string, allowZero = false): { amount: number | null } | { error: string } {
+  if (raw.trim() === "") return { amount: null };
+  const amount = parseNumber(raw);
+  if (amount === null || amount < 0 || (amount === 0 && !allowZero)) return { error: "Bitte eine Menge größer als 0 eingeben." };
+  return { amount };
+}
+
 // Only the keys whose value differs from `current`.
 export function changedKeys<T extends object>(current: T, next: T): Partial<T> {
   const changed: Partial<T> = {};

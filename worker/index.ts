@@ -4,6 +4,8 @@ import { parse } from "./parse";
 import { notes } from "./notes";
 import { split } from "./split";
 import { importLink } from "./import";
+import { match } from "./match";
+import { pantry } from "./pantry";
 import { accessAuth, sameOrigin, securityHeaders, type AppEnv } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
@@ -35,6 +37,8 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.route("/", split);
   app.route("/", notes);
   app.route("/", importLink);
+  app.route("/", match);
+  app.route("/", pantry);
 
   return app;
 }

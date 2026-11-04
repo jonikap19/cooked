@@ -3,6 +3,7 @@ import { z } from "zod";
 import { detectPlatform } from "../shared/format";
 import { AdjustmentInput, IngredientValues, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
 import type { AppEnv } from "./auth";
+import { matchRecipe } from "./match";
 
 export const recipes = new Hono<AppEnv>();
 
@@ -99,14 +100,16 @@ recipes.post("/api/recipes", async (c) => {
       ),
     ),
   ]);
+  c.executionCtx.waitUntil(
+    matchRecipe(c.env, c.var.userId, id).catch((e) => console.warn("match: background match failed:", e instanceof Error ? e.name : "unknown")),
+  );
   return c.json({ id }, 201);
 });
 
-recipes.get("/api/recipes/:id", async (c) => {
-  const { DB } = c.env;
-  const id = c.req.param("id");
-  const row = await DB.prepare("SELECT * FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first<RecipeRow>();
-  if (!row) return c.json(notFound, 404);
+/** The recipe with all its child rows, or null if it does not exist or is not this user's. */
+export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeFull | null> {
+  const row = await DB.prepare("SELECT * FROM recipes WHERE id = ? AND user_id = ?").bind(id, userId).first<RecipeRow>();
+  if (!row) return null;
   // recipe ownership was checked above, so child rows are safe to read by recipe_id
   const [ing, steps, adj, note, ingredientNotes] = await DB.batch([
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
@@ -128,7 +131,12 @@ recipes.get("/api/recipes/:id", async (c) => {
     note: (note.results[0] as { body: string } | undefined)?.body ?? "",
     ingredient_notes: ingredientNotes.results as RecipeFull["ingredient_notes"],
   };
-  return c.json(out);
+  return out;
+}
+
+recipes.get("/api/recipes/:id", async (c) => {
+  const full = await loadRecipe(c.env.DB, c.req.param("id"), c.var.userId);
+  return full ? c.json(full) : c.json(notFound, 404);
 });
 
 recipes.patch("/api/recipes/:id", async (c) => {
@@ -149,7 +157,7 @@ recipes.delete("/api/recipes/:id", async (c) => {
   return c.body(null, 204);
 });
 
-const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+export const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, created_at, updated_at";
 type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
 const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });

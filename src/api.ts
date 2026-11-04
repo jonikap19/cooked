@@ -1,4 +1,4 @@
-import type { Adjustment, AdjustmentInput, NewRecipe, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
+import type { Adjustment, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
@@ -62,6 +62,13 @@ export const api = {
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
   saveIngredientNote: (id: string, targetId: string, text: string) =>
     request<void>(`/api/recipes/${id}/ingredient-notes/${targetId}`, send("PUT", { text })),
+  listPantry: () => request<PantryItem[]>("/api/pantry"),
+  addPantry: (name: string, amount: number | null, unit: string) =>
+    request<PantryItem>("/api/pantry", send("POST", { name, amount, unit })),
+  // Resolves to undefined (204) when the edit deleted the row.
+  editPantry: (key: Pick<PantryItem, "canonical_name" | "unit">, set: Partial<PantryItem>) =>
+    request<PantryItem | undefined>("/api/pantry", send("PATCH", { ...key, set })),
+  deletePantry: (key: Pick<PantryItem, "canonical_name" | "unit">) => request<void>("/api/pantry", send("DELETE", key)),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),
   importLink: (url: string) =>
     request<{

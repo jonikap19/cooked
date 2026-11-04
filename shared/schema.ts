@@ -132,3 +132,24 @@ export type RecipeFull = z.infer<typeof RecipeFull>;
 export const NoteBody = z.object({ text: z.string().max(5000) });
 
 export const NoteText = z.object({ text: z.string().trim().max(500) });
+
+// An ingredient's standard name and unit; target_id is an original ingredient id or an 'add' adjustment id.
+export type Match = { target_id: string; canonical_name: string; unit: string };
+
+export type PantryItem = { canonical_name: string; unit: string; amount: number | null; always_at_home: boolean };
+
+const PantryName = z.string().trim().min(1).max(100);
+const PantryUnit = z.string().trim().max(30);
+const PantryAmount = z.number().min(0).max(100000).nullable();
+
+// Adding needs a positive amount; PATCH may set 0, which deletes the item.
+export const PantryAdd = z.object({ name: PantryName, amount: PantryAmount.pipe(z.number().positive().nullable()), unit: PantryUnit });
+export const PantryKey = z.object({ canonical_name: PantryName, unit: PantryUnit });
+export const PantryEdit = PantryKey.extend({
+  set: z.object({
+    canonical_name: PantryName.optional(),
+    unit: PantryUnit.optional(),
+    amount: PantryAmount.optional(),
+    always_at_home: z.boolean().optional(),
+  }),
+});

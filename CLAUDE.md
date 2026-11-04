@@ -10,6 +10,8 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-04 — Spec deviation: renaming a Vorrat item is a plain edit and does not teach the matcher (no alias). Why: a Vorrat row has no source spelling; aliasing its old name would rewrite every recipe ingredient spelled that way. Corrections from the shopping list will teach it.
+- 2026-11-04 — Spec deviation: a typed Vorrat item keeps the unit it was typed in (after kg→g etc.); the matcher supplies only the name. Why: amounts never cross units.
 - 2026-11-04 — Spec deviation: ingredient notes are not shown in cooking mode. Why: CookMode has no ingredient list; add them with one later.
 - 2026-11-03 — Spec deviation: `recipes` has extra `total_minutes` and `tags` (JSON text). Why: cards/preview/"Unter 30 Min" and tag chips need them.
 - 2026-11-03 — Spec deviation: `adjustments.updated_at`. Why: "Zuletzt geändert am …" after a modify upsert.

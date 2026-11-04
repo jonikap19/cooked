@@ -4,8 +4,21 @@ import { sessionStore } from "./api";
 import CookMode from "./pages/CookMode";
 import AddRecipe from "./pages/AddRecipe";
 import OwnRecipe from "./pages/OwnRecipe";
+import TabBar from "./components/TabBar";
 import Home from "./pages/Home";
+import Pantry from "./pages/Pantry";
 import RecipeDetail from "./pages/RecipeDetail";
+
+// ponytail: placeholder until the shopping list phase.
+function ShoppingList() {
+  return (
+    <main className="page with-tabs">
+      <h1>Einkaufsliste</h1>
+      <p className="empty">Kommt bald</p>
+      <TabBar />
+    </main>
+  );
+}
 
 function SessionExpired() {
   const expired = useSyncExternalStore(sessionStore.subscribe, sessionStore.isExpired);
@@ -24,6 +37,8 @@ export default function App() {
       <SessionExpired />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/einkaufsliste" element={<ShoppingList />} />
+        <Route path="/vorrat" element={<Pantry />} />
         <Route path="/neu" element={<AddRecipe />} />
         <Route path="/neu/eigenes" element={<OwnRecipe />} />
         <Route path="/rezept/:id" element={<RecipeDetail />} />

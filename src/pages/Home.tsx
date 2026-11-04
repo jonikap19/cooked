@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import RecipeCard from "../components/RecipeCard";
+import TabBar from "../components/TabBar";
 import { countLabel, initials } from "../../shared/format";
 import type { RecipeSummary } from "../../shared/schema";
 
@@ -46,7 +47,7 @@ export default function Home() {
   const adjusted = all.filter(FILTERS.Angepasst).length;
 
   return (
-    <main className="page">
+    <main className="page with-tabs">
       <header className="home-header">
         <div>
           <h1>Mein Kochbuch</h1>
@@ -92,11 +93,12 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="sticky-bottom">
+      <div className="sticky-bottom above-tabs">
         <Link to="/neu" className="primary-button">
           <Plus size={22} aria-hidden /> Rezept hinzufügen
         </Link>
       </div>
+      <TabBar />
     </main>
   );
 }
