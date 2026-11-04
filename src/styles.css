@@ -965,3 +965,58 @@ a {
   height: 24px;
   accent-color: var(--primary);
 }
+
+.list-check {
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-check input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+
+.list-line {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.list-line .pantry-edit {
+  min-height: 44px;
+}
+
+.list-name {
+  min-height: 24px;
+}
+
+.checkout-row {
+  display: grid;
+  grid-template-columns: 1fr 96px 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkout-list {
+  list-style: none;
+  padding: 0;
+}
+
+.name-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.name-chip[aria-pressed="true"] {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}

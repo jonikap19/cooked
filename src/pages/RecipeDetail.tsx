@@ -29,6 +29,7 @@ export default function RecipeDetail() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [planned, setPlanned] = useState(false);
   const noteSeeded = useRef(false);
 
   const load = useCallback(async () => {
@@ -49,6 +50,10 @@ export default function RecipeDetail() {
   }, [id]);
 
   useEffect(() => void load(), [load]);
+  // A failed lookup just leaves the button on "Auf die Einkaufsliste".
+  useEffect(() => {
+    api.getList().then((list) => setPlanned(list.planned.some((p) => p.recipe_id === id)), () => {});
+  }, [id]);
 
   // Runs a mutation, refetches, and surfaces the server's message; returns true on success.
   const mutate = async (action: () => Promise<unknown>): Promise<boolean> => {
@@ -103,6 +108,11 @@ export default function RecipeDetail() {
   };
   const closeAfter = async (done: Promise<boolean>) => (await done) && setSheet(null);
 
+  const togglePlanned = () =>
+    void mutate(async () => {
+      await (planned ? api.unplanRecipe(id) : api.planRecipe(id, servings!));
+      setPlanned(!planned);
+    });
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
 
   const saveValues = (values: object) => {
@@ -195,6 +205,10 @@ export default function RecipeDetail() {
             <button className="step-solid" aria-label="Mehr Portionen" disabled={servings >= 100} onClick={() => setServings(servings + 1)}><Plus aria-hidden="true" /></button>
           </div>
         </div>
+
+        <button className="add-item" disabled={busy} onClick={togglePlanned}>
+          {planned ? "Auf der Einkaufsliste" : "Auf die Einkaufsliste"}
+        </button>
 
         <div className="tabs" role="tablist">
           <button role="tab" aria-selected={tab === "ingredient"} onClick={() => setTab("ingredient")}>Zutaten · {merged.ingredients.length}</button>

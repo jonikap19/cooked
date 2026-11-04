@@ -1,4 +1,4 @@
-import type { Adjustment, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
+import type { Adjustment, ListBody, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
@@ -14,6 +14,14 @@ export class SessionExpiredError extends Error {
   constructor() {
     super("Sitzung abgelaufen");
   }
+}
+
+const GENERIC_ERROR = "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+
+// User-facing text for a failed call; session expiry is shown by the global banner instead.
+export function messageOf(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
+  return err instanceof SessionExpiredError ? "" : GENERIC_ERROR;
 }
 
 let expired = false;
@@ -69,6 +77,17 @@ export const api = {
   editPantry: (key: Pick<PantryItem, "canonical_name" | "unit">, set: Partial<PantryItem>) =>
     request<PantryItem | undefined>("/api/pantry", send("PATCH", { ...key, set })),
   deletePantry: (key: Pick<PantryItem, "canonical_name" | "unit">) => request<void>("/api/pantry", send("DELETE", key)),
+  getList: () => request<ListBody>("/api/list"),
+  planRecipe: (recipe_id: string, servings: number) => request<void>("/api/list/recipes", send("POST", { recipe_id, servings })),
+  unplanRecipe: (recipeId: string) => request<void>(`/api/list/recipes/${recipeId}`, send("DELETE")),
+  addListItem: (name: string, amount: number | null, unit: string) =>
+    request<void>("/api/list/items", send("POST", { name, amount, unit })),
+  deleteListItem: (id: string) => request<void>(`/api/list/items/${id}`, send("DELETE")),
+  setTick: (key: string, ticked: boolean) => request<void>("/api/list/ticks", send("PUT", { key, ticked })),
+  checkout: (lines: { key: string; canonical_name: string; unit: string; amount: number | null }[]) =>
+    request<ListBody>("/api/list/checkout", send("POST", { lines })),
+  putAlias: (source_name: string, canonical_name: string, unit: string) =>
+    request<void>("/api/aliases", send("PUT", { source_name, canonical_name, unit })),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),
   importLink: (url: string) =>
     request<{
