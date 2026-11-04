@@ -1,10 +1,11 @@
-import { ChevronLeft, ExternalLink, Minus, Play, Plus } from "lucide-react";
+import { ChevronLeft, ExternalLink, Minus, Play, Plus, Share2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import EditSheet from "../components/EditSheet";
 import SplitSheet from "../components/SplitSheet";
 import ItemRow from "../components/ItemRow";
+import ShareSheet from "../components/ShareSheet";
 import TagDialog from "../components/TagDialog";
 import RecipeImage from "../components/RecipeImage";
 import { countLabel, formatShortDate, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
@@ -25,6 +26,7 @@ export default function RecipeDetail() {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [splitting, setSplitting] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -167,6 +169,9 @@ export default function RecipeDetail() {
           <span className="hero-label">Rezeptbild</span>
         </RecipeImage>
         <Link to="/" className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
+        <button className="source-pill share-pill" onClick={() => setSharing(true)}>
+          <Share2 size={16} aria-hidden="true" /> Teilen
+        </button>
         {recipe.source_url && (
           <a className="source-pill" href={recipe.source_url} target="_blank" rel="noopener noreferrer">
             Original <ExternalLink size={16} aria-hidden="true" />
@@ -294,6 +299,7 @@ export default function RecipeDetail() {
           onClose={() => setSplitting(false)}
         />
       )}
+      {sharing && <ShareSheet recipeId={id} onClose={() => setSharing(false)} />}
       {tagsOpen && (
         <TagDialog
           tags={recipe.tags}

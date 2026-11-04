@@ -109,8 +109,18 @@ recipes.post("/api/recipes", async (c) => {
 /** The recipe with all its child rows, or null if it does not exist or is not this user's. */
 export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeFull | null> {
   const row = await DB.prepare("SELECT * FROM recipes WHERE id = ? AND user_id = ?").bind(id, userId).first<RecipeRow>();
-  if (!row) return null;
   // recipe ownership was checked above, so child rows are safe to read by recipe_id
+  return row && loadChildren(DB, row);
+}
+
+/** Any recipe by id, without an access check: the caller must have checked access. */
+export async function loadRecipeUnchecked(DB: D1Database, id: string): Promise<RecipeFull | null> {
+  const row = await DB.prepare("SELECT * FROM recipes WHERE id = ?").bind(id).first<RecipeRow>();
+  return row && loadChildren(DB, row);
+}
+
+async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull> {
+  const id = row.id;
   const [ing, steps, adj, note, ingredientNotes] = await DB.batch([
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
@@ -120,7 +130,7 @@ export async function loadRecipe(DB: D1Database, id: string, userId: string): Pr
     DB.prepare("SELECT body FROM notes WHERE recipe_id = ?").bind(id),
     DB.prepare("SELECT target_id, body, author, updated_at FROM ingredient_notes WHERE recipe_id = ? ORDER BY updated_at").bind(id),
   ]);
-  const out: RecipeFull = {
+  return {
     recipe: toRecipe(row),
     ingredients: ing.results as RecipeFull["ingredients"],
     steps: steps.results as RecipeFull["steps"],
@@ -131,7 +141,6 @@ export async function loadRecipe(DB: D1Database, id: string, userId: string): Pr
     note: (note.results[0] as { body: string } | undefined)?.body ?? "",
     ingredient_notes: ingredientNotes.results as RecipeFull["ingredient_notes"],
   };
-  return out;
 }
 
 recipes.get("/api/recipes/:id", async (c) => {

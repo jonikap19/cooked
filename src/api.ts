@@ -1,4 +1,5 @@
-import type { Adjustment, ListBody, Match, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
+import type { Snapshot } from "../worker/copy";
+import type { Adjustment, ListBody, Match, AdjustmentInput, IngredientNote, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
@@ -54,6 +55,9 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
 const send = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
 
+// The server strips the note author from shared previews.
+export type SharedPreview = Omit<Snapshot, "ingredient_notes"> & { ingredient_notes: Omit<IngredientNote, "author">[] };
+
 export const api = {
   me: () => request<{ userId: string }>("/api/me"),
   listRecipes: () => request<RecipeSummary[]>("/api/recipes"),
@@ -100,5 +104,10 @@ export const api = {
       image_url: string | null;
       caption: string | null;
     }>("/api/import-link", send("POST", { url })),
+  shareRecipe: (id: string, mode: "with_comments" | "baked") =>
+    request<{ url: string; expires_at: string }>(`/api/recipes/${id}/share`, send("POST", { mode })),
+  getShared: (token: string) =>
+    request<{ recipe: SharedPreview; expires_at: string; shared_by_initials: string }>(`/api/share/${encodeURIComponent(token)}`),
+  importShared: (token: string) => request<{ id: string }>(`/api/share/${encodeURIComponent(token)}/import`, send("POST")),
   splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };

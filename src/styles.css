@@ -1037,3 +1037,9 @@ a {
   height: 24px;
   margin: 10px;
 }
+
+/* Beside the round back button; the right edge belongs to the source pill. */
+.share-pill {
+  right: auto;
+  left: 76px;
+}

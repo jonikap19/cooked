@@ -7,6 +7,7 @@ import { importLink } from "./import";
 import { match } from "./match";
 import { pantry } from "./pantry";
 import { list } from "./list";
+import { share } from "./share";
 import { accessAuth, sameOrigin, securityHeaders, type AppEnv } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
@@ -15,6 +16,7 @@ export type Env = {
   AI: Ai;
   IMAGES: R2Bucket;
   PARSE_LIMIT: RateLimit;
+  SOCIAL_LIMIT: RateLimit;
   TEAM_DOMAIN: string;
   POLICY_AUD: string;
   DEV_USER_EMAIL?: string;
@@ -41,6 +43,7 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.route("/", match);
   app.route("/", pantry);
   app.route("/", list);
+  app.route("/", share);
 
   return app;
 }

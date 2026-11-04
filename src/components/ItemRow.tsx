@@ -10,12 +10,13 @@ interface Props {
   number?: number;
   scale: (n: number | null) => number | null;
   showOriginal: boolean;
-  onEdit(): void;
-  onRestore(): void;
-  busy: boolean;
+  onEdit?(): void; // without it the row is read-only (shared preview)
+  onRestore?(): void;
+  busy?: boolean;
+  by?: string; // who made the adjustments; "dir" on your own recipes
 }
 
-export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy }: Props) {
+export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir" }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -24,8 +25,8 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
   const stepOriginal = step?.original ?? null;
 
   let subline = "";
-  if (status === "added") subline = "Von dir hinzugefügt";
-  else if (status === "removed") subline = "Von dir entfernt";
+  if (status === "added") subline = `Von ${by} hinzugefügt`;
+  else if (status === "removed") subline = `Von ${by} entfernt`;
   else if (status === "modified") {
     if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
     else if (step && stepOriginal) {
@@ -50,7 +51,7 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
         {note && <span className="item-note">{note}</span>}
         {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
       </div>
-      {status === "removed" ? (
+      {!onEdit ? null : status === "removed" ? (
         <button className="restore" disabled={busy} onClick={onRestore}>
           <Undo2 size={18} aria-hidden="true" />
           Wiederherstellen
