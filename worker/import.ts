@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { detectPlatform } from "../shared/format";
 import { HttpsUrl, type ParsedRecipe } from "../shared/schema";
+import { recipeAccess } from "./access";
 import type { AppEnv } from "./auth";
 import { extractFromHtml } from "./extract";
 import { FetchRejected, safeFetch } from "./fetch-guard";
@@ -91,7 +92,6 @@ importLink.get("/api/images/tmp/:uuid", async (c) => {
 
 importLink.get("/api/images/:id", async (c) => {
   const id = c.req.param("id");
-  const owned = await c.env.DB.prepare("SELECT 1 AS x FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first();
-  const object = owned ? await c.env.IMAGES.get(id) : null;
+  const object = (await recipeAccess(c.env.DB, c.var.userId, id)) ? await c.env.IMAGES.get(id) : null;
   return object ? imageResponse(object) : c.json(notFound, 404);
 });

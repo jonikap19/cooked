@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { NoteText } from "../shared/schema";
+import { recipeAccess } from "./access";
 import type { AppEnv } from "./auth";
-import { invalid, notFound, ownsRecipe, readJson } from "./recipes";
+import { invalid, notFound, readJson } from "./recipes";
 
 export const notes = new Hono<AppEnv>();
 
@@ -23,7 +24,7 @@ notes.put("/api/recipes/:id/ingredient-notes/:targetId", async (c) => {
   if (!parsed.success) return c.json(invalid, 400);
   const rid = c.req.param("id");
   const targetId = c.req.param("targetId");
-  if (!(await ownsRecipe(c, rid)) || !(await assertIngredientTarget(c.env.DB, rid, targetId))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid)) || !(await assertIngredientTarget(c.env.DB, rid, targetId))) return c.json(notFound, 404);
   const { text } = parsed.data;
   await (text
     ? c.env.DB.prepare(

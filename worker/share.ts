@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { initials } from "../shared/format";
+import { recipeAccess } from "./access";
 import type { AppEnv } from "./auth";
 import { insertSnapshot, snapshotRecipe, type Snapshot } from "./copy";
 import { tooManyRequests } from "./parse";
-import { invalid, notFound, ownsRecipe, readJson } from "./recipes";
+import { invalid, notFound, readJson } from "./recipes";
 
 export const share = new Hono<AppEnv>();
 
@@ -27,7 +28,7 @@ share.post("/api/recipes/:id/share", async (c) => {
   const { success } = await c.env.SOCIAL_LIMIT.limit({ key: `share:${c.var.userId}` });
   if (!success) return c.json(tooManyRequests, 429);
   const id = c.req.param("id");
-  if (!(await ownsRecipe(c, id))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
   const snapshot = await snapshotRecipe(c.env.DB, id, parsed.data.mode);
   const token = newToken();
   const expiresAt = new Date(Date.now() + DAY_MS).toISOString();
@@ -55,8 +56,12 @@ share.get("/api/share/:token", async (c) => {
   if (row === 404) return c.json(notFound, 404);
   if (row === 410) return c.json(expired, 410);
   const snapshot = JSON.parse(row.payload) as Snapshot;
-  // No emails in the preview: note authors are dropped, the sharer shows as initials.
-  const recipe = { ...snapshot, ingredient_notes: snapshot.ingredient_notes.map(({ author, ...note }) => note) };
+  // No emails in the preview: note and adjustment authors are dropped, the sharer shows as initials.
+  const recipe = {
+    ...snapshot,
+    adjustments: snapshot.adjustments.map(({ author, ...adjustment }) => adjustment),
+    ingredient_notes: snapshot.ingredient_notes.map(({ author, ...note }) => note),
+  };
   return c.json({ recipe, expires_at: row.expires_at, shared_by_initials: initials(row.created_by) });
 });
 

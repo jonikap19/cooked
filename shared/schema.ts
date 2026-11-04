@@ -60,6 +60,8 @@ export const Adjustment = z.object({
   new_values: z
     .union([z.strictObject(IngredientValues.shape).partial(), z.strictObject(StepValues.shape).partial()])
     .nullable(),
+  // Who last wrote it; null for adjustments from before groups.
+  author: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -102,6 +104,7 @@ export const Recipe = z.object({
   servings: z.number().int(),
   total_minutes: z.number().int().nullable(),
   tags: z.array(z.string().max(30)).max(10),
+  group_id: z.string().nullable(),
   created_at: z.string(),
 });
 export type Recipe = z.infer<typeof Recipe>;
@@ -163,6 +166,10 @@ export const ListCheckout = z.object({
 });
 // What the user confirmed in the "Fertig gekocht" sheet; a null or 0 amount subtracts nothing.
 export const ListCooked = z.object({ items: z.array(PantryKey.extend({ amount: PantryAmount })).max(100) });
+
+export const GroupName = z.object({ name: z.string().trim().min(1).max(60) });
+export const GroupInvite = z.object({ email: z.string().trim().toLowerCase().max(254).pipe(z.email()) });
+export const ShareToGroup = z.object({ group_id: z.string().min(1).max(100) });
 
 export type ListBody = {
   lines: ShoppingLine[];

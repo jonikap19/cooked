@@ -13,10 +13,11 @@ interface Props {
   onEdit?(): void; // without it the row is read-only (shared preview)
   onRestore?(): void;
   busy?: boolean;
+  sharedBy?: string; // group recipes: initials of whoever wrote the adjustment or note
   by?: string; // who made the adjustments; "dir" on your own recipes
 }
 
-export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir" }: Props) {
+export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir", sharedBy }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -25,8 +26,9 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
   const stepOriginal = step?.original ?? null;
 
   let subline = "";
-  if (status === "added") subline = `Von ${by} hinzugefügt`;
-  else if (status === "removed") subline = `Von ${by} entfernt`;
+  // On group recipes the "Geteilt von" line carries the attribution.
+  if (status === "added") subline = sharedBy ? "" : `Von ${by} hinzugefügt`;
+  else if (status === "removed") subline = sharedBy ? "" : `Von ${by} entfernt`;
   else if (status === "modified") {
     if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
     else if (step && stepOriginal) {
@@ -49,6 +51,7 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
         <span className="item-main">{ingredient ? ingredient.name : step?.text}</span>
         {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
         {note && <span className="item-note">{note}</span>}
+        {sharedBy && <span className="meta small">Geteilt von {sharedBy}</span>}
         {subline && <span className={status === "original" ? "meta small" : "item-sub"}>{subline}</span>}
       </div>
       {!onEdit ? null : status === "removed" ? (

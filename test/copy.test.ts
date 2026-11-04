@@ -114,6 +114,28 @@ describe("recipe copy", () => {
     expect(copy.recipe).toMatchObject({ tags: ["Schnell", "Italienisch"], total_minutes: 25 });
   });
 
+  it("into a group: writes group_id, keeps the copier as creator and author, ignores payload authors", async () => {
+    const a = user();
+    const b = user();
+    const { id } = await source(a);
+    const gid = crypto.randomUUID();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO groups (id, name, created_by) VALUES (?, 'WG', ?)").bind(gid, b),
+      env.DB.prepare("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)").bind(gid, b),
+    ]);
+    const snapshot = await snapshotRecipe(env.DB, id, "with_comments");
+    // A foreign author, and a payload from before 0007 that has no author at all.
+    snapshot.adjustments[0] = { ...snapshot.adjustments[0], author: "evil@example.com" };
+    delete (snapshot.adjustments[1] as { author?: unknown }).author;
+    const copyId = await insertSnapshot(testEnv(), snapshot, { userId: b, groupId: gid });
+
+    const row = await env.DB.prepare("SELECT user_id, group_id FROM recipes WHERE id = ?").bind(copyId).first();
+    expect(row).toEqual({ user_id: b, group_id: gid });
+    const copy = await get(b, copyId);
+    expect(copy.adjustments.length).toBe(snapshot.adjustments.length);
+    expect(new Set(copy.adjustments.map((x) => x.author))).toEqual(new Set([b]));
+  });
+
   it("has no image when the source object is gone", async () => {
     const a = user();
     const { id } = await source(a);
