@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { sessionStore } from "./api";
 import CookMode from "./pages/CookMode";
 import AddRecipe from "./pages/AddRecipe";
+import OwnRecipe from "./pages/OwnRecipe";
 import Home from "./pages/Home";
 import RecipeDetail from "./pages/RecipeDetail";
 
@@ -24,6 +25,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/neu" element={<AddRecipe />} />
+        <Route path="/neu/eigenes" element={<OwnRecipe />} />
         <Route path="/rezept/:id" element={<RecipeDetail />} />
         <Route path="/rezept/:id/kochen" element={<CookMode />} />
       </Routes>

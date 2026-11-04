@@ -110,6 +110,7 @@ export default function AddRecipe() {
             {value === "link" ? "Link einfügen" : "Text einfügen"}
           </button>
         ))}
+        <button onClick={() => navigate("/neu/eigenes")}>Eigenes Rezept</button>
       </div>
 
       {tab === "link" && (
