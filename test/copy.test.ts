@@ -88,7 +88,7 @@ describe("recipe copy", () => {
 
     const copyKaese = copy.adjustments.find((x) => x.action === "add" && x.target_type === "ingredient")!;
     expect(copyKaese.id).not.toBe(kaese);
-    expect(copy.ingredient_notes).toMatchObject([{ target_id: copyKaese.id, body: "gerieben", author: a }]);
+    expect(copy.ingredient_notes).toMatchObject([{ target_id: copyKaese.id, body: "gerieben", author: b }]); // the copy belongs to whoever made it
 
     expect(copy.recipe.image_url).toBe(`/api/images/${copyId}`);
     await call(a, `/api/recipes/${id}`, "DELETE");

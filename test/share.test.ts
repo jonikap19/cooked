@@ -100,10 +100,12 @@ describe("share links", () => {
     }
     expect(new Set([...ids, id]).size).toBe(3);
     for (const copyId of ids) {
-      const copy = await get(bob, copyId);
+      const text = await (await call(bob, `/api/recipes/${copyId}`)).text();
+      expect(text).not.toContain(alice); // the sharer's email never reaches the importer
+      const copy = JSON.parse(text) as RecipeFull;
       expect(copy.recipe.title).toBe("Pasta");
       expect(copy.recipe.image_url).toBe(`/api/images/${copyId}`);
-      expect(copy.ingredient_notes[0].author).toBe(alice); // stored payload is imported unchanged
+      expect(copy.ingredient_notes).toMatchObject([{ body: "al dente", author: bob }]);
       expect(await (await env.IMAGES.get(copyId))?.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3]).buffer);
     }
   });

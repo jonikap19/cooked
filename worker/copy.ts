@@ -83,11 +83,12 @@ export async function insertSnapshot(env: Env, snapshot: Snapshot, owner: { user
       ),
       ...(snapshot.note ? [DB.prepare("INSERT INTO notes (recipe_id, body) VALUES (?, ?)").bind(id, snapshot.note)] : []),
       // An orphan note (target gone) has nothing to attach to, so it is dropped.
+      // Copied notes belong to whoever makes the copy, so no source author's email travels with it.
       ...snapshot.ingredient_notes
         .filter((n) => newIds.has(n.target_id))
         .map((n) =>
           DB.prepare("INSERT INTO ingredient_notes (recipe_id, target_id, body, author, updated_at) VALUES (?, ?, ?, ?, ?)").bind(
-            id, remap(n.target_id), n.body, n.author, n.updated_at,
+            id, remap(n.target_id), n.body, owner.userId, n.updated_at,
           ),
         ),
     ]);
