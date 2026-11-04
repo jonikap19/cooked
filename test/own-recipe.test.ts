@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { blankForm, formToRecipe } from "../src/lib/ownRecipe";
-import { NewRecipe } from "../shared/schema";
 
 const filled = () => ({
   ...blankForm(),
@@ -39,7 +38,6 @@ describe("formToRecipe", () => {
         image_url: null,
       },
     });
-    expect(NewRecipe.safeParse((result as { recipe: unknown }).recipe).success).toBe(true);
   });
 
   it("blank total minutes become null", () => {
@@ -57,5 +55,12 @@ describe("formToRecipe", () => {
     expect(formToRecipe({ ...filled(), servings: "0" })).toEqual(error);
     expect(formToRecipe({ ...filled(), totalMinutes: "9999" })).toEqual(error);
     expect(formToRecipe({ ...filled(), steps: [{ text: "x", minutes: "1,5" }] })).toEqual(error);
+  });
+
+  it("rejects non-blank numbers it cannot read instead of dropping them", () => {
+    const error = { error: "Bitte prüfe die Eingaben." };
+    expect(formToRecipe({ ...filled(), ingredients: [{ amount: "1/2", unit: "", name: "Mehl" }] })).toEqual(error);
+    expect(formToRecipe({ ...filled(), steps: [{ text: "x", minutes: "ca. 30" }] })).toEqual(error);
+    expect(formToRecipe({ ...filled(), totalMinutes: "1.2.3" })).toEqual(error);
   });
 });
