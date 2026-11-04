@@ -58,10 +58,10 @@ export async function insertSnapshot(env: Env, snapshot: Snapshot, owner: { user
   const r = snapshot.recipe;
   try {
     await DB.batch([
-      // Task 15 adds the group_id write for owner.groupId.
+      // In a group, user_id stays the copier as creator; access then goes by group_id.
       DB.prepare(
-        "INSERT INTO recipes (id, user_id, title, source_url, source_platform, image_url, servings, total_minutes, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      ).bind(id, owner.userId, r.title, r.source_url, r.source_platform, image ? `${IMAGE_PREFIX}${id}` : null, r.servings, r.total_minutes, JSON.stringify(r.tags)),
+        "INSERT INTO recipes (id, user_id, group_id, title, source_url, source_platform, image_url, servings, total_minutes, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ).bind(id, owner.userId, owner.groupId, r.title, r.source_url, r.source_platform, image ? `${IMAGE_PREFIX}${id}` : null, r.servings, r.total_minutes, JSON.stringify(r.tags)),
       ...snapshot.ingredients.map((i) =>
         DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)").bind(
           remap(i.id), id, i.position, i.name, i.amount, i.unit,
@@ -73,12 +73,13 @@ export async function insertSnapshot(env: Env, snapshot: Snapshot, owner: { user
         ),
       ),
       // In source order with verbatim timestamps, so insert_after placement by (created_at, rowid) is unchanged.
+      // Like notes, copied adjustments belong to the copier; any payload author (or none, before 0007) is ignored.
       ...snapshot.adjustments.map((a) =>
         DB.prepare(
-          "INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values, author, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).bind(
           remap(a.id), id, a.target_type, remap(a.target_id), a.action, remap(a.insert_after),
-          a.new_values ? JSON.stringify(a.new_values) : null, a.created_at, a.updated_at,
+          a.new_values ? JSON.stringify(a.new_values) : null, owner.userId, a.created_at, a.updated_at,
         ),
       ),
       ...(snapshot.note ? [DB.prepare("INSERT INTO notes (recipe_id, body) VALUES (?, ?)").bind(id, snapshot.note)] : []),

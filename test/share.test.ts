@@ -69,12 +69,13 @@ describe("share links", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     const text = await res.text();
-    expect(text).not.toContain("@example.com");
+    expect(text).not.toContain("@"); // no adjustment or note author, no sharer email
     const preview = JSON.parse(text) as Preview;
     expect(preview.recipe.recipe.title).toBe("Pasta");
     expect(preview.recipe.adjustments).toHaveLength(1);
     expect(preview.recipe.ingredient_notes).toEqual([expect.objectContaining({ body: "al dente" })]);
     expect(preview.recipe.ingredient_notes[0]).not.toHaveProperty("author");
+    expect(preview.recipe.adjustments[0]).not.toHaveProperty("author");
     expect(preview.expires_at).toBe(expires_at);
     expect(preview.shared_by_initials).toBe(initials(alice));
   });

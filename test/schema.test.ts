@@ -34,7 +34,7 @@ describe("NewRecipe source_url", () => {
 });
 
 describe("Adjustment round trip", () => {
-  const base = { id: "a1", target_id: "x", insert_after: null, created_at: "t", updated_at: "t" };
+  const base = { id: "a1", target_id: "x", insert_after: null, author: null, created_at: "t", updated_at: "t" };
   it.each([
     { target_type: "step", action: "modify", new_values: { duration_minutes: 8 } },
     { target_type: "ingredient", action: "modify", new_values: { amount: 150 } },

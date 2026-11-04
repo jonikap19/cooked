@@ -13,7 +13,7 @@ const stepTwo = { id: "s2", position: 1, text: "Servieren", duration_minutes: nu
 
 const adjustment = (over: Partial<Adjustment>): Adjustment => ({
   id: "a1", target_type: "ingredient", target_id: "i1", action: "modify", insert_after: null,
-  new_values: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...over,
+  new_values: null, author: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...over,
 });
 const full = (adjustments: Adjustment[]): RecipeFull => ({
   recipe, ingredients: [flour, salt], steps: [stepOne, stepTwo], adjustments, note: "", ingredient_notes: [],

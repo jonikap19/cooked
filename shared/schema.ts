@@ -60,6 +60,8 @@ export const Adjustment = z.object({
   new_values: z
     .union([z.strictObject(IngredientValues.shape).partial(), z.strictObject(StepValues.shape).partial()])
     .nullable(),
+  // Who last wrote it; null for adjustments from before groups.
+  author: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });

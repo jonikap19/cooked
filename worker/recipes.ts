@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { detectPlatform } from "../shared/format";
 import { AdjustmentInput, IngredientValues, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
+import { recipeAccess } from "./access";
 import type { AppEnv } from "./auth";
 import { matchRecipe } from "./match";
 
@@ -48,17 +49,17 @@ recipes.get("/api/recipes", async (c) => {
   const { DB } = c.env;
   const uid = c.var.userId;
   const [rows, names, adds, counts] = await DB.batch([
-    DB.prepare("SELECT * FROM recipes WHERE user_id = ? ORDER BY created_at DESC").bind(uid),
+    DB.prepare("SELECT * FROM recipes WHERE user_id = ? AND group_id IS NULL ORDER BY created_at DESC").bind(uid),
     DB.prepare(
-      "SELECT i.recipe_id, i.name FROM ingredients i JOIN recipes r ON r.id = i.recipe_id WHERE r.user_id = ? ORDER BY i.position",
+      "SELECT i.recipe_id, i.name FROM ingredients i JOIN recipes r ON r.id = i.recipe_id WHERE r.user_id = ? AND r.group_id IS NULL ORDER BY i.position",
     ).bind(uid),
     DB.prepare(
       `SELECT a.recipe_id, json_extract(a.new_values, '$.name') AS name FROM adjustments a
        JOIN recipes r ON r.id = a.recipe_id
-       WHERE r.user_id = ? AND a.target_type = 'ingredient' AND a.action = 'add' ORDER BY a.created_at`,
+       WHERE r.user_id = ? AND r.group_id IS NULL AND a.target_type = 'ingredient' AND a.action = 'add' ORDER BY a.created_at`,
     ).bind(uid),
     DB.prepare(
-      "SELECT a.recipe_id, COUNT(*) AS n FROM adjustments a JOIN recipes r ON r.id = a.recipe_id WHERE r.user_id = ? GROUP BY a.recipe_id",
+      "SELECT a.recipe_id, COUNT(*) AS n FROM adjustments a JOIN recipes r ON r.id = a.recipe_id WHERE r.user_id = ? AND r.group_id IS NULL GROUP BY a.recipe_id",
     ).bind(uid),
   ]);
   const namesBy = new Map<string, string[]>();
@@ -106,11 +107,9 @@ recipes.post("/api/recipes", async (c) => {
   return c.json({ id }, 201);
 });
 
-/** The recipe with all its child rows, or null if it does not exist or is not this user's. */
+/** The recipe with all its child rows, or null if it does not exist or this user has no access. */
 export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeFull | null> {
-  const row = await DB.prepare("SELECT * FROM recipes WHERE id = ? AND user_id = ?").bind(id, userId).first<RecipeRow>();
-  // recipe ownership was checked above, so child rows are safe to read by recipe_id
-  return row && loadChildren(DB, row);
+  return (await recipeAccess(DB, userId, id)) ? loadRecipeUnchecked(DB, id) : null;
 }
 
 /** Any recipe by id, without an access check: the caller must have checked access. */
@@ -125,7 +124,7 @@ async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull>
     DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare(
-      "SELECT id, target_type, target_id, action, insert_after, new_values, created_at, updated_at FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid",
+      `SELECT ${ADJ_COLS} FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid`,
     ).bind(id),
     DB.prepare("SELECT body FROM notes WHERE recipe_id = ?").bind(id),
     DB.prepare("SELECT target_id, body, author, updated_at FROM ingredient_notes WHERE recipe_id = ? ORDER BY updated_at").bind(id),
@@ -152,27 +151,24 @@ recipes.patch("/api/recipes/:id", async (c) => {
   const parsed = Tags.safeParse(await readJson(c));
   const tags = parsed.success ? normalizeTags(parsed.data.tags) : null;
   if (!tags || tags.length > 10) return c.json(invalid, 400);
-  const res = await c.env.DB.prepare("UPDATE recipes SET tags = ? WHERE id = ? AND user_id = ?")
-    .bind(JSON.stringify(tags), c.req.param("id"), c.var.userId)
-    .run();
-  return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
+  const id = c.req.param("id");
+  if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
+  await c.env.DB.prepare("UPDATE recipes SET tags = ? WHERE id = ?").bind(JSON.stringify(tags), id).run();
+  return c.body(null, 204);
 });
 
 recipes.delete("/api/recipes/:id", async (c) => {
   const id = c.req.param("id");
-  const res = await c.env.DB.prepare("DELETE FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).run();
-  if (!res.meta.changes) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
+  await c.env.DB.prepare("DELETE FROM recipes WHERE id = ?").bind(id).run();
   await c.env.IMAGES.delete(id);
   return c.body(null, 204);
 });
 
 export const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
-const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, created_at, updated_at";
+const ADJ_COLS = "id, target_type, target_id, action, insert_after, new_values, author, created_at, updated_at";
 type AdjRow = Omit<Adjustment, "new_values"> & { new_values: string | null };
 const toAdjustment = (a: AdjRow): Adjustment => ({ ...a, new_values: a.new_values ? JSON.parse(a.new_values) : null });
-
-export const ownsRecipe = async (c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string) =>
-  !!(await c.env.DB.prepare("SELECT 1 AS x FROM recipes WHERE id = ? AND user_id = ?").bind(id, c.var.userId).first());
 
 recipes.post("/api/recipes/:id/adjustments", async (c) => {
   const parsed = AdjustmentInput.safeParse(await readJson(c));
@@ -180,7 +176,7 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
   const input = parsed.data;
   const { DB } = c.env;
   const rid = c.req.param("id");
-  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid))) return c.json(notFound, 404);
 
   const aid = crypto.randomUUID();
   const newValues = "new_values" in input ? JSON.stringify(input.new_values) : null;
@@ -191,8 +187,8 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
     if (anchor && !(await DB.prepare(`SELECT 1 AS x FROM ${table} WHERE id = ? AND recipe_id = ?`).bind(anchor, rid).first())) {
       return c.json(notFound, 404);
     }
-    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values) VALUES (?, ?, ?, NULL, 'add', ?, ?)")
-      .bind(aid, rid, input.target_type, anchor, newValues)
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values, author) VALUES (?, ?, ?, NULL, 'add', ?, ?, ?)")
+      .bind(aid, rid, input.target_type, anchor, newValues, c.var.userId)
       .run();
     return c.json(await readAdjustment(c, rid, aid), 201);
   }
@@ -211,8 +207,8 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
 
   if (input.action === "remove") {
     if (existing) return c.json(toAdjustment(existing), 201);
-    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action) VALUES (?, ?, ?, ?, 'remove')")
-      .bind(aid, rid, input.target_type, input.target_id)
+    await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, author) VALUES (?, ?, ?, ?, 'remove', ?)")
+      .bind(aid, rid, input.target_type, input.target_id, c.var.userId)
       .run();
     return c.json(await readAdjustment(c, rid, aid), 201);
   }
@@ -224,13 +220,13 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
     return c.body(null, 204);
   }
   if (existing) {
-    await DB.prepare(`UPDATE adjustments SET new_values = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
-      .bind(JSON.stringify(merged), existing.id, rid)
+    await DB.prepare(`UPDATE adjustments SET new_values = ?, author = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
+      .bind(JSON.stringify(merged), c.var.userId, existing.id, rid)
       .run();
     return c.json(await readAdjustment(c, rid, existing.id), 201);
   }
-  await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values) VALUES (?, ?, ?, ?, 'modify', ?)")
-    .bind(aid, rid, input.target_type, input.target_id, JSON.stringify(merged))
+  await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values, author) VALUES (?, ?, ?, ?, 'modify', ?, ?)")
+    .bind(aid, rid, input.target_type, input.target_id, JSON.stringify(merged), c.var.userId)
     .run();
   return c.json(await readAdjustment(c, rid, aid), 201);
 });
@@ -242,7 +238,7 @@ async function readAdjustment(c: { env: AppEnv["Bindings"] }, rid: string, aid: 
 
 recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const rid = c.req.param("id");
-  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid))) return c.json(notFound, 404);
   const row = await c.env.DB.prepare(`SELECT ${ADJ_COLS} FROM adjustments WHERE id = ? AND recipe_id = ?`)
     .bind(c.req.param("adjId"), rid)
     .first<AdjRow>();
@@ -251,15 +247,15 @@ recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const schema = z.object({ new_values: row.target_type === "ingredient" ? IngredientValues : StepValues });
   const parsed = schema.safeParse(await readJson(c));
   if (!parsed.success) return c.json(invalid, 400);
-  await c.env.DB.prepare(`UPDATE adjustments SET new_values = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
-    .bind(JSON.stringify(parsed.data.new_values), row.id, rid)
+  await c.env.DB.prepare(`UPDATE adjustments SET new_values = ?, author = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
+    .bind(JSON.stringify(parsed.data.new_values), c.var.userId, row.id, rid)
     .run();
   return c.json(await readAdjustment(c, rid, row.id), 200);
 });
 
 recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const rid = c.req.param("id");
-  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid))) return c.json(notFound, 404);
   const adjId = c.req.param("adjId");
   // An added ingredient's note would be orphaned, so it goes first (while the subquery still sees the adjustment).
   // Scoped to a real add adjustment: a 404 here must not delete the note of an original ingredient whose id was passed.
@@ -277,7 +273,7 @@ recipes.put("/api/recipes/:id/note", async (c) => {
   const parsed = NoteBody.safeParse(await readJson(c));
   if (!parsed.success) return c.json(invalid, 400);
   const rid = c.req.param("id");
-  if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid))) return c.json(notFound, 404);
   const text = parsed.data.text.trim();
   await (text
     ? c.env.DB.prepare("INSERT INTO notes (recipe_id, body) VALUES (?, ?) ON CONFLICT(recipe_id) DO UPDATE SET body = excluded.body").bind(rid, text)

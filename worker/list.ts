@@ -3,11 +3,12 @@ import { mergeRecipe } from "../shared/merge";
 import { ListCheckout, ListCooked, ListRecipeAdd, ListTick, PantryAdd, type ListBody } from "../shared/schema";
 import { computeShoppingList, scaledNeeds } from "../shared/shopping";
 import { toBase } from "../shared/units";
+import { recipeAccess } from "./access";
 import type { AppEnv } from "./auth";
 import type { Env } from "./index";
 import { matchName, matchRecipe } from "./match";
 import { pantryStatements, readPantry } from "./pantry";
-import { invalid, loadRecipe, notFound, ownsRecipe, readJson } from "./recipes";
+import { invalid, loadRecipe, notFound, readJson } from "./recipes";
 
 type Item = { id: string; canonical_name: string; unit: string; amount: number | null };
 
@@ -60,7 +61,7 @@ list.post("/api/list/recipes", async (c) => {
   const parsed = ListRecipeAdd.safeParse(await readJson(c));
   if (!parsed.success) return c.json(invalid, 400);
   const { recipe_id, servings } = parsed.data;
-  if (!(await ownsRecipe(c, recipe_id))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, recipe_id))) return c.json(notFound, 404);
   await c.env.DB.prepare(
     `INSERT INTO planned_recipes (user_id, recipe_id, servings) VALUES (?, ?, ?)
      ON CONFLICT (user_id, recipe_id) DO UPDATE SET servings = planned_recipes.servings + excluded.servings`,
@@ -146,8 +147,8 @@ list.post("/api/list/checkout", async (c) => {
 
 list.get("/api/recipes/:id/matches", async (c) => {
   const id = c.req.param("id");
-  // matchRecipe answers [] for a foreign recipe too, so ownership is checked here.
-  if (!(await ownsRecipe(c, id))) return c.json(notFound, 404);
+  // matchRecipe answers [] for a foreign recipe too, so access is checked here.
+  if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
   return c.json(await matchRecipe(c.env, c.var.userId, id));
 });
 
@@ -157,7 +158,7 @@ list.post("/api/recipes/:id/cooked", async (c) => {
   const { DB } = c.env;
   const uid = c.var.userId;
   const id = c.req.param("id");
-  if (!(await ownsRecipe(c, id))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
   // Exactly the confirmed amounts, never recomputed here.
   const changes = parsed.data.items
     .filter((i) => i.amount)
