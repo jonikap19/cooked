@@ -106,7 +106,7 @@ export default function RecipeDetail() {
   const { recipe } = full;
   const merged = mergeRecipe(full);
   const scale = (n: number | null) => scaleAmount(n, recipe.servings, servings);
-  const lastChange = full.adjustments.map((a) => a.updated_at).sort().at(-1);
+  const lastChange = formatShortDate(full.adjustments.map((a) => a.updated_at).sort().at(-1) ?? "");
   const meta = [
     recipe.source_platform && platformLabel(recipe.source_platform),
     recipe.total_minutes && `${recipe.total_minutes} Min gesamt`,
@@ -213,7 +213,7 @@ export default function RecipeDetail() {
           <div className="adj-banner">
             <div>
               <strong>{countLabel(merged.adjustmentCount, "eigene Anpassung", "eigene Anpassungen")}</strong>
-              {lastChange && <p className="small">Zuletzt geändert am {formatShortDate(lastChange)}</p>}
+              {lastChange && <p className="small">Zuletzt geändert am {lastChange}</p>}
             </div>
             <button onClick={() => setShowOriginal(!showOriginal)}>{showOriginal ? "Anpassungen zeigen" : "Original zeigen"}</button>
           </div>

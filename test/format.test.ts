@@ -14,6 +14,8 @@ describe("format", () => {
     expect(formatAmount(1 / 3)).toBe("0,33");
     expect(formatAmount(2)).toBe("2");
     expect(formatAmount(null)).toBe("");
+    expect(formatAmount(0.004)).toBe("0,004");
+    expect(formatAmount(0)).toBe("0");
   });
   it("detects platform", () => {
     expect(detectPlatform("https://www.instagram.com/p/x")).toBe("instagram");
@@ -35,6 +37,7 @@ describe("format", () => {
   });
   it("formats short date", () => {
     expect(formatShortDate("2026-10-28T10:00:00Z")).toBe("28. Okt.");
+    expect(formatShortDate("not a date")).toBe("");
   });
   it("builds initials", () => {
     expect(initials("jonathan.kapfenstein@outlook.de")).toBe("JK");

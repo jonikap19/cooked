@@ -22,19 +22,34 @@ Regeln:
 
 export class ParseError extends Error {}
 
+export const AI_TIMEOUT_MS = 30_000;
+
+/** ai.run with MODEL, rejecting with a TimeoutError after AI_TIMEOUT_MS. */
+export async function runModel(ai: Ai, inputs: object): Promise<{ response?: unknown }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException("AI call timed out", "TimeoutError")), AI_TIMEOUT_MS);
+  // Raced as well as passed on, so a binding that ignores the signal still cannot hang the request.
+  const timedOut = new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(controller.signal.reason)));
+  try {
+    return (await Promise.race([ai.run(MODEL, inputs as never, { signal: controller.signal }), timedOut])) as { response?: unknown };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const { $schema: _, ...jsonSchema } = z.toJSONSchema(ParsedRecipe);
 
 export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecipe> {
   let raw: unknown;
   try {
-    const out = (await ai.run(MODEL, {
+    const out = await runModel(ai, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: text },
       ],
       max_tokens: 4096,
       response_format: { type: "json_schema", json_schema: jsonSchema },
-    } as never)) as { response?: unknown };
+    });
     raw = out.response;
     if (typeof raw === "string") raw = JSON.parse(raw);
   } catch (e) {

@@ -5,7 +5,7 @@ import type { Match } from "../shared/schema";
 import { nameKey, normalizeUnit } from "../shared/units";
 import type { AppEnv } from "./auth";
 import type { Env } from "./index";
-import { MODEL } from "./parse";
+import { runModel } from "./parse";
 import { invalid, ISO_NOW, loadRecipe, readJson } from "./recipes";
 
 type Canonical = { canonical_name: string; unit: string };
@@ -53,7 +53,7 @@ async function aiMatch(env: Env, userId: string, inputs: Input[]): Promise<Map<s
     const { success } = await env.PARSE_LIMIT.limit({ key: userId });
     if (!success) return out;
     const known = await knownNames(env.DB, userId);
-    const res = (await env.AI.run(MODEL, {
+    const res = await runModel(env.AI, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify({ names: inputs, known }) },
@@ -61,7 +61,7 @@ async function aiMatch(env: Env, userId: string, inputs: Input[]): Promise<Map<s
       // ponytail: at roughly 30 ingredients the JSON output is truncated and the whole recipe falls back; chunk the names or raise max_tokens.
       max_tokens: 1024,
       response_format: { type: "json_schema", json_schema: jsonSchema },
-    } as never)) as { response?: unknown };
+    });
     const raw = typeof res.response === "string" ? JSON.parse(res.response) : res.response;
     for (const item of AiOutput.parse(raw).items) {
       const parsed = AiItem.safeParse(item);

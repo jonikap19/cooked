@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { detectPlatform } from "../shared/format";
 import { AdjustmentInput, IngredientValues, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
@@ -11,6 +11,7 @@ export const recipes = new Hono<AppEnv>();
 export const invalid = { error: "Ungültige Eingabe" };
 export const notFound = { error: "Nicht gefunden" };
 
+// The cap is on the raw array; normalising only drops entries, so it can never grow past 10.
 const Tags = z.object({ tags: z.array(z.string()).max(10) });
 
 function normalizeTags(raw: string[]): string[] | null {
@@ -147,7 +148,7 @@ recipes.get("/api/recipes/:id", async (c) => {
 recipes.patch("/api/recipes/:id", async (c) => {
   const parsed = Tags.safeParse(await readJson(c));
   const tags = parsed.success ? normalizeTags(parsed.data.tags) : null;
-  if (!tags || tags.length > 10) return c.json(invalid, 400);
+  if (!tags) return c.json(invalid, 400);
   const id = c.req.param("id");
   if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
   // ponytail: access checked then written in two statements; fold into one WHERE if it matters.
@@ -190,7 +191,7 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
     await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, insert_after, new_values, author) VALUES (?, ?, ?, NULL, 'add', ?, ?, ?)")
       .bind(aid, rid, input.target_type, anchor, newValues, c.var.userId)
       .run();
-    return c.json(await readAdjustment(c, rid, aid), 201);
+    return readAdjustment(c, rid, aid, 201);
   }
 
   // target must belong to this recipe
@@ -210,7 +211,7 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
     await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, author) VALUES (?, ?, ?, ?, 'remove', ?)")
       .bind(aid, rid, input.target_type, input.target_id, c.var.userId)
       .run();
-    return c.json(await readAdjustment(c, rid, aid), 201);
+    return readAdjustment(c, rid, aid, 201);
   }
 
   const merged: Record<string, unknown> = { ...(existing?.new_values ? JSON.parse(existing.new_values) : {}), ...input.new_values };
@@ -223,17 +224,18 @@ recipes.post("/api/recipes/:id/adjustments", async (c) => {
     await DB.prepare(`UPDATE adjustments SET new_values = ?, author = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
       .bind(JSON.stringify(merged), c.var.userId, existing.id, rid)
       .run();
-    return c.json(await readAdjustment(c, rid, existing.id), 201);
+    return readAdjustment(c, rid, existing.id, 201);
   }
   await DB.prepare("INSERT INTO adjustments (id, recipe_id, target_type, target_id, action, new_values, author) VALUES (?, ?, ?, ?, 'modify', ?, ?)")
     .bind(aid, rid, input.target_type, input.target_id, JSON.stringify(merged), c.var.userId)
     .run();
-  return c.json(await readAdjustment(c, rid, aid), 201);
+  return readAdjustment(c, rid, aid, 201);
 });
 
-async function readAdjustment(c: { env: AppEnv["Bindings"] }, rid: string, aid: string) {
+// The row can be gone if the recipe was deleted between the write and this read.
+async function readAdjustment(c: Context<AppEnv>, rid: string, aid: string, status: 200 | 201) {
   const row = await c.env.DB.prepare(`SELECT ${ADJ_COLS} FROM adjustments WHERE id = ? AND recipe_id = ?`).bind(aid, rid).first<AdjRow>();
-  return toAdjustment(row!);
+  return row ? c.json(toAdjustment(row), status) : c.json(notFound, 404);
 }
 
 recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
@@ -250,7 +252,7 @@ recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
   await c.env.DB.prepare(`UPDATE adjustments SET new_values = ?, author = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
     .bind(JSON.stringify(parsed.data.new_values), c.var.userId, row.id, rid)
     .run();
-  return c.json(await readAdjustment(c, rid, row.id), 200);
+  return readAdjustment(c, rid, row.id, 200);
 });
 
 recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {

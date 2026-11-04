@@ -6,7 +6,9 @@ export function scaleAmount(amount: number | null, base: number, target: number)
 
 export function formatAmount(amount: number | null): string {
   if (amount === null) return "";
-  return String(Math.round(amount * 100) / 100).replace(".", ",");
+  const rounded = Math.round(amount * 100) / 100;
+  // A tiny scaled-down amount keeps one significant digit instead of reading "0".
+  return String(rounded === 0 && amount !== 0 ? Number(amount.toPrecision(1)) : rounded).replace(".", ",");
 }
 
 export function detectPlatform(url: string | null): Recipe["source_platform"] {
@@ -28,7 +30,8 @@ export function formatQuantity(amount: number | null, unit: string): string {
 const shortDate = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short", timeZone: "Europe/Berlin" });
 
 export function formatShortDate(iso: string): string {
-  return shortDate.format(new Date(iso));
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : shortDate.format(date);
 }
 
 export function initials(email: string): string {
