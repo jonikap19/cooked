@@ -45,35 +45,32 @@ export const readJson = (c: { req: { json: () => Promise<unknown> } }) => c.req.
 type RecipeRow = Omit<Recipe, "tags"> & { tags: string };
 const toRecipe = (r: RecipeRow): Recipe => ({ ...r, tags: JSON.parse(r.tags) });
 
-recipes.get("/api/recipes", async (c) => {
-  const { DB } = c.env;
-  const uid = c.var.userId;
+/** Recipe cards for the Home list (a user's personal recipes) or a group's recipes, newest first. */
+export async function recipeSummaries(DB: D1Database, scope: { userId: string } | { groupId: string }): Promise<RecipeSummary[]> {
+  const [where, value] = "groupId" in scope ? ["r.group_id = ?", scope.groupId] : ["r.user_id = ? AND r.group_id IS NULL", scope.userId];
   const [rows, names, adds, counts] = await DB.batch([
-    DB.prepare("SELECT * FROM recipes WHERE user_id = ? AND group_id IS NULL ORDER BY created_at DESC").bind(uid),
-    DB.prepare(
-      "SELECT i.recipe_id, i.name FROM ingredients i JOIN recipes r ON r.id = i.recipe_id WHERE r.user_id = ? AND r.group_id IS NULL ORDER BY i.position",
-    ).bind(uid),
+    DB.prepare(`SELECT r.* FROM recipes r WHERE ${where} ORDER BY r.created_at DESC`).bind(value),
+    DB.prepare(`SELECT i.recipe_id, i.name FROM ingredients i JOIN recipes r ON r.id = i.recipe_id WHERE ${where} ORDER BY i.position`).bind(value),
     DB.prepare(
       `SELECT a.recipe_id, json_extract(a.new_values, '$.name') AS name FROM adjustments a
        JOIN recipes r ON r.id = a.recipe_id
-       WHERE r.user_id = ? AND r.group_id IS NULL AND a.target_type = 'ingredient' AND a.action = 'add' ORDER BY a.created_at`,
-    ).bind(uid),
-    DB.prepare(
-      "SELECT a.recipe_id, COUNT(*) AS n FROM adjustments a JOIN recipes r ON r.id = a.recipe_id WHERE r.user_id = ? AND r.group_id IS NULL GROUP BY a.recipe_id",
-    ).bind(uid),
+       WHERE ${where} AND a.target_type = 'ingredient' AND a.action = 'add' ORDER BY a.created_at`,
+    ).bind(value),
+    DB.prepare(`SELECT a.recipe_id, COUNT(*) AS n FROM adjustments a JOIN recipes r ON r.id = a.recipe_id WHERE ${where} GROUP BY a.recipe_id`).bind(value),
   ]);
   const namesBy = new Map<string, string[]>();
   for (const { recipe_id, name } of [...names.results, ...adds.results] as { recipe_id: string; name: string | null }[]) {
     if (name) namesBy.set(recipe_id, [...(namesBy.get(recipe_id) ?? []), name]);
   }
   const countBy = new Map((counts.results as { recipe_id: string; n: number }[]).map((r) => [r.recipe_id, r.n]));
-  const out: RecipeSummary[] = (rows.results as RecipeRow[]).map((r) => ({
+  return (rows.results as RecipeRow[]).map((r) => ({
     ...toRecipe(r),
     adjustment_count: countBy.get(r.id) ?? 0,
     ingredient_names: namesBy.get(r.id) ?? [],
   }));
-  return c.json(out);
-});
+}
+
+recipes.get("/api/recipes", async (c) => c.json(await recipeSummaries(c.env.DB, { userId: c.var.userId })));
 
 recipes.post("/api/recipes", async (c) => {
   const parsed = NewRecipe.safeParse(await readJson(c));

@@ -4,7 +4,7 @@ import type { Adjustment, RecipeFull } from "../shared/schema";
 
 const recipe = {
   id: "r1", title: "T", source_url: null, source_platform: null, image_url: null,
-  servings: 2, total_minutes: null, tags: [], created_at: "2026-01-01",
+  servings: 2, total_minutes: null, tags: [], group_id: null, created_at: "2026-01-01",
 };
 const flour = { id: "i1", position: 0, name: "Mehl", amount: 120, unit: "g" };
 const salt = { id: "i2", position: 1, name: "Salz", amount: null, unit: "" };

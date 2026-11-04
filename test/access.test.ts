@@ -39,7 +39,7 @@ async function recipeOf(email: string): Promise<Fixture> {
   return { id, ingredientId, addId };
 }
 
-/** A group with these members; no groups API yet (Task 16), so it is plain SQL. */
+/** A group with these members, as plain SQL so access tests do not depend on the groups API. */
 async function groupOf(...members: string[]) {
   const gid = crypto.randomUUID();
   await env.DB.batch([
@@ -51,8 +51,10 @@ async function groupOf(...members: string[]) {
 const moveToGroup = (recipeId: string, gid: string) => env.DB.prepare("UPDATE recipes SET group_id = ? WHERE id = ?").bind(gid, recipeId).run();
 const leave = (gid: string, email: string) => env.DB.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").bind(gid, email).run();
 
+type Req = [method: string, path: string, body?: unknown];
 // Every recipe-scoped route and the status the owner gets. Add a row per new recipe-scoped route.
-const routes: { name: string; status: number; req: (f: Fixture) => [method: string, path: string, body?: unknown] }[] = [
+// `email` is the caller, for routes that also need something of the caller's own.
+const routes: { name: string; status: number; req: (f: Fixture, email: string) => Req | Promise<Req> }[] = [
   { name: "detail", status: 200, req: (f) => ["GET", `/api/recipes/${f.id}`] },
   { name: "tags", status: 204, req: (f) => ["PATCH", `/api/recipes/${f.id}`, { tags: ["Schnell"] }] },
   { name: "delete recipe", status: 204, req: (f) => ["DELETE", `/api/recipes/${f.id}`] },
@@ -74,10 +76,12 @@ const routes: { name: string; status: number; req: (f: Fixture) => [method: stri
   { name: "list add", status: 204, req: (f) => ["POST", "/api/list/recipes", { recipe_id: f.id, servings: 2 }] },
   { name: "cooked", status: 204, req: (f) => ["POST", `/api/recipes/${f.id}/cooked`, { items: [] }] },
   { name: "share", status: 201, req: (f) => ["POST", `/api/recipes/${f.id}/share`, { mode: "baked" }] },
+  // The target is a group of the caller's own, so only access to the source decides.
+  { name: "share to group", status: 201, req: async (f, email) => ["POST", `/api/recipes/${f.id}/share-to-group`, { group_id: await groupOf(email) }] },
 ];
 
-const statusFor = async (email: string, f: Fixture, req: (f: Fixture) => [string, string, unknown?]) => {
-  const [method, path, body] = req(f);
+const statusFor = async (email: string, f: Fixture, req: (typeof routes)[number]["req"]) => {
+  const [method, path, body] = await req(f, email);
   return (await call(email, path, method, body)).status;
 };
 

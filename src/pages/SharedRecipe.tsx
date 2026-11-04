@@ -8,9 +8,9 @@ import { countLabel, placeholderColor, platformLabel } from "../../shared/format
 import { mergeRecipe } from "../../shared/merge";
 import type { RecipeFull } from "../../shared/schema";
 
-// The snapshot has no id, timestamp or servable image; mergeRecipe never reads them.
+// The snapshot has no id, timestamp, servable image or group; mergeRecipe never reads them.
 const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_notes }: SharedPreview): RecipeFull => ({
-  recipe: { ...recipe, id: "", created_at: "", image_url: null },
+  recipe: { ...recipe, id: "", created_at: "", image_url: null, group_id: null },
   ingredients,
   steps,
   adjustments,

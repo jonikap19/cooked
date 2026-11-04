@@ -4,7 +4,7 @@ import type { Env } from "./index";
 import { loadRecipeUnchecked } from "./recipes";
 
 export type Snapshot = {
-  recipe: Omit<Recipe, "id" | "created_at" | "image_url">;
+  recipe: Omit<Recipe, "id" | "created_at" | "image_url" | "group_id">;
   image_key: string | null;
   ingredients: Ingredient[];
   steps: Step[];
