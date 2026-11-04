@@ -118,4 +118,12 @@ describe("ingredient notes", () => {
     expect((await call(a, `/api/recipes/${id}/adjustments/${adj}`, "DELETE")).status).toBe(204);
     expect((await notes(a, id)).map((x: any) => x.target_id)).toEqual([ingredientId]);
   });
+
+  it("keeps an original ingredient's note when its id is sent to the adjustment delete", async () => {
+    const a = user();
+    const { id, ingredientId } = await setup(a);
+    await put(a, id, ingredientId, "x");
+    expect((await call(a, `/api/recipes/${id}/adjustments/${ingredientId}`, "DELETE")).status).toBe(404);
+    expect(await notes(a, id)).toMatchObject([{ target_id: ingredientId, body: "x" }]);
+  });
 });

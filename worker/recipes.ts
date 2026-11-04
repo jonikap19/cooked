@@ -244,10 +244,14 @@ recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const rid = c.req.param("id");
   if (!(await ownsRecipe(c, rid))) return c.json(notFound, 404);
   const adjId = c.req.param("adjId");
-  // An added ingredient's note would be orphaned; for any other adjustment id no note matches, so it is a no-op.
-  const [res] = await c.env.DB.batch([
+  // An added ingredient's note would be orphaned, so it goes first (while the subquery still sees the adjustment).
+  // Scoped to a real add adjustment: a 404 here must not delete the note of an original ingredient whose id was passed.
+  const [, res] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `DELETE FROM ingredient_notes WHERE recipe_id = ?1 AND target_id IN
+       (SELECT id FROM adjustments WHERE id = ?2 AND recipe_id = ?1 AND action = 'add' AND target_type = 'ingredient')`,
+    ).bind(rid, adjId),
     c.env.DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(adjId, rid),
-    c.env.DB.prepare("DELETE FROM ingredient_notes WHERE recipe_id = ? AND target_id = ?").bind(rid, adjId),
   ]);
   return res.meta.changes ? c.body(null, 204) : c.json(notFound, 404);
 });
