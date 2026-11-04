@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { changedKeys, pantryAmount, parseNumber } from "../src/lib/edit";
+import { amountFromField, changedKeys, pantryAmount, parseNumber } from "../src/lib/edit";
 
 describe("edit helpers", () => {
+  it("keeps the stored amount when the rounded prefill is untouched", () => {
+    expect(amountFromField("0,33", 0.3333)).toBe(0.3333);
+    expect(amountFromField("0,5", 0.3333)).toBe(0.5);
+    expect(amountFromField("", null)).toBeNull();
+  });
+
   it("parses comma and dot decimals, empty as null", () => {
     expect(parseNumber("1,5")).toBe(1.5);
     expect(parseNumber("1.5")).toBe(1.5);

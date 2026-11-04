@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { changedKeys, parseNumber } from "../lib/edit";
+import { countLabel, formatAmount } from "../../shared/format";
+import { amountFromField, changedKeys, parseNumber } from "../lib/edit";
 import type { Merged } from "../../shared/merge";
 import type { Ingredient, IngredientValues, Step, StepValues } from "../../shared/schema";
 
@@ -25,7 +26,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
   const ids = [useId(), useId(), useId(), useId()];
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient> | null) : null;
   const step = kind === "step" ? (item as Merged<Step> | null) : null;
-  const [amount, setAmount] = useState(String(ingredient?.amount ?? "").replace(".", ","));
+  const [amount, setAmount] = useState(formatAmount(ingredient?.amount ?? null));
   const [unit, setUnit] = useState(ingredient?.unit ?? "");
   const [name, setName] = useState(ingredient?.name ?? "");
   const [text, setText] = useState(step?.text ?? "");
@@ -43,7 +44,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
     }
     const next: Values =
       kind === "ingredient"
-        ? { name: name.trim(), amount: parseNumber(amount), unit: unit.trim() }
+        ? { name: name.trim(), amount: amountFromField(amount, ingredient?.amount ?? null), unit: unit.trim() }
         : { text: text.trim(), duration_minutes: parseNumber(duration) };
     if (!item) return onSave(next, null);
     const changed = changedKeys(item as unknown as Values, next);
@@ -61,7 +62,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
         <h2>{title}</h2>
         {kind === "ingredient" ? (
           <>
-            {servingsHint && <p className="hint">Mengen für {servingsHint} Portionen</p>}
+            {servingsHint && <p className="hint">Mengen für {countLabel(servingsHint, "Portion", "Portionen")}</p>}
             <label className="field-label" htmlFor={ids[0]}>Menge</label>
             <input id={ids[0]} className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
             <label className="field-label" htmlFor={ids[1]}>Einheit</label>

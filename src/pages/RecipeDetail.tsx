@@ -123,14 +123,14 @@ export default function RecipeDetail() {
       await (planned ? api.unplanRecipe(id) : api.planRecipe(id, servings!));
       setPlanned(!planned);
     });
-  // Group recipes only: who wrote the adjustments and the note on a row. Null authors (pre-groups rows) show nothing.
+  // Group recipes only: who wrote the adjustments and the note on a row. Null authors (pre-groups rows) give "", which still suppresses the "Von dir" subline.
   const sharedByFor = (itemId: string, adjustmentIds: string[]) => {
     if (!recipe.group_id) return undefined;
     const authors = [
       ...full.adjustments.filter((a) => adjustmentIds.includes(a.id)).map((a) => a.author),
       full.ingredient_notes.find((n) => n.target_id === itemId)?.author,
     ];
-    return [...new Set(authors.filter((a): a is string => !!a).map(initials))].join(", ") || undefined;
+    return [...new Set(authors.filter((a): a is string => !!a).map(initials))].join(", ");
   };
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
 

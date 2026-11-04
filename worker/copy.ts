@@ -94,7 +94,7 @@ export async function insertSnapshot(env: Env, snapshot: Snapshot, owner: { user
         ),
     ]);
   } catch (e) {
-    if (image) await IMAGES.delete(id).catch(() => {});
+    if (image) await IMAGES.delete(id).catch((e) => console.warn("copy: image rollback failed:", e instanceof Error ? e.name : "unknown"));
     throw e;
   }
   return id;

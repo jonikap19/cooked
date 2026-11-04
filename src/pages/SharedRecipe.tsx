@@ -9,6 +9,7 @@ import { mergeRecipe } from "../../shared/merge";
 import type { RecipeFull } from "../../shared/schema";
 
 // The snapshot has no id, timestamp, servable image or group; mergeRecipe never reads them.
+// Note authors are blank for the same reason: a share link carries no author, and the preview never shows one.
 const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_notes }: SharedPreview): RecipeFull => ({
   recipe: { ...recipe, id: "", created_at: "", image_url: null, group_id: null },
   ingredients,

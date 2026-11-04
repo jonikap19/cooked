@@ -35,6 +35,7 @@ export default function GroupPicker({ groups, recipeId, onClose }: Props) {
         {groups.map((group) => (
           <button key={group.id} className="primary-button inline" disabled={busy} onClick={() => void pick(group.id)}>{group.name}</button>
         ))}
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
         {error && <p className="error" role="alert">{error}</p>}
       </div>
     </dialog>

@@ -13,7 +13,7 @@ interface Props {
   onEdit?(): void; // without it the row is read-only (shared preview)
   onRestore?(): void;
   busy?: boolean;
-  sharedBy?: string; // group recipes: initials of whoever wrote the adjustment or note
+  sharedBy?: string; // group recipes only ("" = author unknown): initials of whoever wrote the adjustment or note
   by?: string; // who made the adjustments; "dir" on your own recipes
 }
 
@@ -27,8 +27,8 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
 
   let subline = "";
   // On group recipes the "Geteilt von" line carries the attribution.
-  if (status === "added") subline = sharedBy ? "" : `Von ${by} hinzugefügt`;
-  else if (status === "removed") subline = sharedBy ? "" : `Von ${by} entfernt`;
+  if (status === "added") subline = sharedBy !== undefined ? "" : `Von ${by} hinzugefügt`;
+  else if (status === "removed") subline = sharedBy !== undefined ? "" : `Von ${by} entfernt`;
   else if (status === "modified") {
     if (ingredient && original) subline = `Geändert · Original ${formatQuantity(scale(original.amount), original.unit)}`.trim();
     else if (step && stepOriginal) {
