@@ -23,11 +23,13 @@ Regeln:
 export class ParseError extends Error {}
 
 export const AI_TIMEOUT_MS = 30_000;
+// A full recipe (4096 output tokens) can legitimately take longer than the short split/match calls.
+export const PARSE_TIMEOUT_MS = 60_000;
 
-/** ai.run with MODEL, rejecting with a TimeoutError after AI_TIMEOUT_MS. */
-export async function runModel(ai: Ai, inputs: object): Promise<{ response?: unknown }> {
+/** ai.run with MODEL, rejecting with a TimeoutError after timeoutMs. */
+export async function runModel(ai: Ai, inputs: object, timeoutMs = AI_TIMEOUT_MS): Promise<{ response?: unknown }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new DOMException("AI call timed out", "TimeoutError")), AI_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(new DOMException("AI call timed out", "TimeoutError")), timeoutMs);
   // Raced as well as passed on, so a binding that ignores the signal still cannot hang the request.
   const timedOut = new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(controller.signal.reason)));
   try {
@@ -49,7 +51,7 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
       ],
       max_tokens: 4096,
       response_format: { type: "json_schema", json_schema: jsonSchema },
-    });
+    }, PARSE_TIMEOUT_MS);
     raw = out.response;
     if (typeof raw === "string") raw = JSON.parse(raw);
   } catch (e) {

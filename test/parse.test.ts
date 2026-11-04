@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AI_TIMEOUT_MS, parseRecipeText, ParseError } from "../worker/parse";
+import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError } from "../worker/parse";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
 const recipe = {
@@ -40,7 +40,7 @@ describe("parseRecipeText", () => {
     try {
       const result = parseRecipeText(fakeAi(() => new Promise(() => {})), "x");
       const check = expect(result).rejects.toBeInstanceOf(ParseError);
-      await vi.advanceTimersByTimeAsync(AI_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(PARSE_TIMEOUT_MS);
       await check;
     } finally {
       vi.useRealTimers();
