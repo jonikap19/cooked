@@ -28,7 +28,7 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
 
   app.use("/api/*", securityHeaders);
   app.onError((err, c) => {
-    console.error(err);
+    console.error("unhandled error:", err.name);
     return c.json({ error: "Etwas ist schiefgelaufen. Bitte versuche es erneut." }, 500);
   });
   app.get("/api/health", (c) => c.json({ ok: true }));

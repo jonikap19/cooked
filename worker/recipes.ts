@@ -160,7 +160,8 @@ recipes.delete("/api/recipes/:id", async (c) => {
   if (!(await recipeAccess(c.env.DB, c.var.userId, id))) return c.json(notFound, 404);
   // ponytail: access checked then written in two statements; fold into one WHERE if it matters.
   await c.env.DB.prepare("DELETE FROM recipes WHERE id = ?").bind(id).run();
-  await c.env.IMAGES.delete(id);
+  // The recipe is already gone, so a failed image delete must not turn this into a 500.
+  await c.env.IMAGES.delete(id).catch((e) => console.warn("delete: image cleanup failed:", e instanceof Error ? e.name : "unknown"));
   return c.body(null, 204);
 });
 

@@ -53,6 +53,7 @@ groups.get("/api/groups/:id", async (c) => {
     DB.prepare("SELECT user_id FROM group_members WHERE group_id = ? ORDER BY user_id").bind(id),
     DB.prepare("SELECT email FROM group_invites WHERE group_id = ? ORDER BY created_at").bind(id),
   ]);
+  if (!group.results[0]) return c.json(notFound, 404);
   return c.json({
     ...(group.results[0] as { id: string; name: string }),
     members: (members.results as { user_id: string }[]).map((m) => m.user_id),
