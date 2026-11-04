@@ -848,3 +848,34 @@ a {
 .split-pieces li {
   padding: 6px 0;
 }
+
+.own-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.own-row .field {
+  min-width: 0;
+}
+
+.own-amount,
+.own-unit {
+  flex: 0 0 76px;
+}
+
+.own-grow {
+  flex: 1;
+}
+
+.own-add {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
