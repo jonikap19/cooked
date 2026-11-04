@@ -29,6 +29,16 @@ function RecipeDetailRoute() {
   return <RecipeDetail key={id} />;
 }
 
+function GroupRoute() {
+  const { id } = useParams();
+  return <Group key={id} />;
+}
+
+function SharedRecipeRoute() {
+  const { token } = useParams();
+  return <SharedRecipe key={token} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,11 +48,11 @@ export default function App() {
         <Route path="/einkaufsliste" element={<ShoppingList />} />
         <Route path="/vorrat" element={<Pantry />} />
         <Route path="/gruppen" element={<Groups />} />
-        <Route path="/gruppen/:id" element={<Group />} />
+        <Route path="/gruppen/:id" element={<GroupRoute />} />
         <Route path="/neu" element={<AddRecipe />} />
         <Route path="/neu/eigenes" element={<OwnRecipe />} />
         <Route path="/rezept/:id" element={<RecipeDetailRoute />} />
-        <Route path="/teilen/:token" element={<SharedRecipe />} />
+        <Route path="/teilen/:token" element={<SharedRecipeRoute />} />
         <Route path="/rezept/:id/kochen" element={<CookMode />} />
       </Routes>
     </BrowserRouter>

@@ -38,7 +38,7 @@ export default function Home() {
 
   const all = recipes ?? [];
   const tags = [...new Set(all.flatMap((recipe) => recipe.tags))];
-  const matchesChip = FILTERS[chip] ?? ((recipe: RecipeSummary) => recipe.tags.includes(chip));
+  const matchesChip = (Object.hasOwn(FILTERS, chip) ? FILTERS[chip] : (recipe: RecipeSummary) => recipe.tags.includes(chip)));
   const needle = query.trim().toLowerCase();
   const shown = all.filter(
     (recipe) =>

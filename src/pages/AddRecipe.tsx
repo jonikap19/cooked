@@ -226,7 +226,7 @@ export default function AddRecipe() {
             <Stat value={parsed.ingredients.length} label="Zutaten" />
             <Stat value={parsed.steps.length} label="Schritte" />
             <Stat value={parsed.total_minutes ?? "–"} label="Minuten" />
-            <Stat value={parsed.servings} label="Portionen" />
+            <Stat value={parsed.servings} label={parsed.servings === 1 ? "Portion" : "Portionen"} />
           </div>
           <ul className="preview-ingredients">
             {parsed.ingredients.slice(0, 3).map((ingredient, index) => (
