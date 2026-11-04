@@ -1,5 +1,11 @@
 export const remainingSeconds = (endAt: number, now: number) => Math.max(0, Math.ceil((endAt - now) / 1000));
 
+/** State after pausing; a timer that expired since the last tick stays running, so it finishes and alarms like on a tick. */
+export function pauseTimer(endAt: number, now: number) {
+  const remaining = remainingSeconds(endAt, now);
+  return remaining > 0 ? { endAt: null, remainingWhenPaused: remaining } : { endAt, remainingWhenPaused: null };
+}
+
 export const formatClock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 

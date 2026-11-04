@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import CookedSheet from "../components/CookedSheet";
 import { playAlarm, unlockAudio } from "../lib/alarm";
-import { durationDiffLabel, formatClock, remainingSeconds, timerChips } from "../lib/timer";
+import { durationDiffLabel, formatClock, pauseTimer, remainingSeconds, timerChips } from "../lib/timer";
 import { useWakeLock } from "../lib/wakeLock";
 import { detectDuration } from "../../shared/duration";
 import { mergeRecipe, type Merged } from "../../shared/merge";
@@ -35,7 +35,8 @@ function StepTimer({ step, minutes, fromText, state, now, onChange }: {
   };
   const click = () => {
     if (done) start(total);
-    else if (running) onChange({ endAt: null, remainingWhenPaused: remaining });
+    // Fresh clock: `now` can be up to a tick old.
+    else if (state.endAt !== null) onChange(pauseTimer(state.endAt, Date.now()));
     else start(remaining);
   };
   const original = step.original?.duration_minutes ?? null;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parseRecipeText } from "../worker/parse";
+import { describe, expect, it, vi } from "vitest";
+import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError } from "../worker/parse";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
 const recipe = {
@@ -34,6 +34,17 @@ describe("parseRecipeText", () => {
       throw new Error("JSON Mode couldn't be met");
     });
     await expect(parseRecipeText(ai, "x")).rejects.toThrow();
+  });
+  it("gives up on a model call that never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const result = parseRecipeText(fakeAi(() => new Promise(() => {})), "x");
+      const check = expect(result).rejects.toBeInstanceOf(ParseError);
+      await vi.advanceTimersByTimeAsync(PARSE_TIMEOUT_MS);
+      await check;
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("puts user text only in the user message", async () => {
     let args: any;

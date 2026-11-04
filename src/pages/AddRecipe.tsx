@@ -104,7 +104,7 @@ export default function AddRecipe() {
         <h1>Rezept hinzufügen</h1>
       </header>
 
-      <div className="segmented">
+      <div className="segmented" role="group" aria-label="Rezept hinzufügen per">
         {(["link", "text"] as const).map((value) => (
           <button key={value} className={tab === value ? "active" : ""} aria-pressed={tab === value} onClick={() => setTab(value)}>
             {value === "link" ? "Link einfügen" : "Text einfügen"}
@@ -130,6 +130,7 @@ export default function AddRecipe() {
             onChange={(event) => {
               setImportUrl(event.target.value);
               resetImport();
+              setError("");
             }}
           />
           {!parsed && (
@@ -157,6 +158,7 @@ export default function AddRecipe() {
               setText(event.target.value);
               setParsed(null);
               setImageUrl(null);
+              setError("");
             }}
           />
         </>

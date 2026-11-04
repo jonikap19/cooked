@@ -11,11 +11,11 @@ const publicJwk: JWK = { ...(await exportJWK(publicKey)), alg: "RS256", use: "si
 
 export async function signToken(
   email: string | undefined,
-  opts: { audience?: string; expiresIn?: string | number; key?: CryptoKey } = {},
+  opts: { audience?: string; issuer?: string; expiresIn?: string | number; key?: CryptoKey } = {},
 ) {
   return new SignJWT(email === undefined ? {} : { email })
     .setProtectedHeader({ alg: "RS256" })
-    .setIssuer(TEST_TEAM_DOMAIN)
+    .setIssuer(opts.issuer ?? TEST_TEAM_DOMAIN)
     .setAudience(opts.audience ?? TEST_AUD)
     .setIssuedAt()
     .setExpirationTime(opts.expiresIn ?? "1h")

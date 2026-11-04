@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { StepValues } from "../shared/schema";
 import type { AppEnv } from "./auth";
-import { MODEL, ParseError } from "./parse";
+import { ParseError, runModel } from "./parse";
 import { invalid, readJson } from "./recipes";
 
 const SYSTEM_PROMPT = `Du teilst einen einzelnen Kochschritt in kleinere Schritte auf.
@@ -21,14 +21,14 @@ const { $schema: _, ...jsonSchema } = z.toJSONSchema(SplitOutput);
 export async function splitStepText(ai: Ai, text: string): Promise<StepValues[]> {
   let raw: unknown;
   try {
-    const out = (await ai.run(MODEL, {
+    const out = await runModel(ai, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: text },
       ],
       max_tokens: 1024,
       response_format: { type: "json_schema", json_schema: jsonSchema },
-    } as never)) as { response?: unknown };
+    });
     raw = out.response;
     if (typeof raw === "string") raw = JSON.parse(raw);
   } catch (e) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationDiffLabel, formatClock, remainingSeconds, timerChips } from "../src/lib/timer";
+import { durationDiffLabel, formatClock, pauseTimer, remainingSeconds, timerChips } from "../src/lib/timer";
 
 describe("timer", () => {
   const now = 1_000_000;
@@ -7,6 +7,10 @@ describe("timer", () => {
     expect(remainingSeconds(now + 8 * 60_000, now)).toBe(480);
     expect(remainingSeconds(now - 5000, now)).toBe(0);
     expect(remainingSeconds(now + 1500, now)).toBe(2);
+  });
+  it("pauses with the remaining time, but lets an expired timer finish", () => {
+    expect(pauseTimer(now + 1500, now)).toEqual({ endAt: null, remainingWhenPaused: 2 });
+    expect(pauseTimer(now - 200, now)).toEqual({ endAt: now - 200, remainingWhenPaused: null });
   });
   it("formats clock", () => {
     expect(formatClock(480)).toBe("8:00");

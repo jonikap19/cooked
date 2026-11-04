@@ -31,8 +31,14 @@ export const accessAuth = (getJwks: (env: Env) => JWTVerifyGetKey) =>
       c.set("userId", devEmail.toLowerCase());
       return next();
     }
+    // Reasons only: never the token or the email.
+    const reject = (reason: string) => {
+      console.warn("auth: rejected:", reason);
+      return c.json(unauthenticated, 401);
+    };
     const token = c.req.header("Cf-Access-Jwt-Assertion");
-    if (!token || !c.env.TEAM_DOMAIN || !c.env.POLICY_AUD) return c.json(unauthenticated, 401);
+    if (!c.env.TEAM_DOMAIN || !c.env.POLICY_AUD) return reject("config missing");
+    if (!token) return reject("no token");
     try {
       const { payload } = await jwtVerify(token, getJwks(c.env), {
         issuer: c.env.TEAM_DOMAIN,
@@ -40,10 +46,10 @@ export const accessAuth = (getJwks: (env: Env) => JWTVerifyGetKey) =>
         algorithms: ["RS256"],
       });
       const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
-      if (!email) return c.json(unauthenticated, 401);
+      if (!email) return reject("no email claim");
       c.set("userId", email);
-    } catch {
-      return c.json(unauthenticated, 401);
+    } catch (e) {
+      return reject(e instanceof Error ? ((e as { code?: string }).code ?? e.name) : "unknown");
     }
     await next();
   });

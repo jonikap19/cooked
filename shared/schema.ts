@@ -18,7 +18,7 @@ export type StepValues = z.infer<typeof StepValues>;
 
 // Plain object schema (no transforms/refinements) so z.toJSONSchema can export it for the AI call.
 export const ParsedRecipe = z.object({
-  title: z.string().min(1).max(200),
+  title: z.string().trim().min(1).max(200),
   servings: z.number().int().min(1).max(100),
   total_minutes: z.number().int().min(1).max(2880).nullable(),
   ingredients: z.array(IngredientValues).max(100),

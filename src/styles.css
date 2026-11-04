@@ -18,6 +18,7 @@
   --tile: #f3f2ed;
   --primary-soft: #e4ece7;
   --cook-panel: rgba(255, 255, 255, 0.08);
+  --backdrop: rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -29,6 +30,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "DM Sans Variable", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -36,10 +38,6 @@ h2,
 h3 {
   font-family: "Bricolage Grotesque Variable", sans-serif;
   font-weight: 700;
-}
-
-body {
-  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -343,6 +341,12 @@ a {
   font-size: 0.9rem;
   line-height: 1.2;
   font-weight: 500;
+  cursor: pointer;
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .segmented button.active {
@@ -380,6 +384,12 @@ a {
   border-color: var(--primary);
   border-width: 2px;
   padding: 13px 15px;
+}
+
+/* Locked while the text is parsed. */
+textarea.field[readonly] {
+  background: var(--tile);
+  color: var(--muted);
 }
 
 .add-chips {
@@ -661,7 +671,7 @@ a {
 
 .item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-height: 56px;
   padding: 8px 4px 8px 16px;
@@ -677,7 +687,7 @@ a {
 }
 
 .item-removed {
-  border: 1px dashed var(--adj-text);
+  border: 1px dashed color-mix(in srgb, var(--adj-text) 40%, transparent);
   background: transparent;
 }
 
@@ -689,6 +699,8 @@ a {
 
 .item-modified .item-amount,
 .item-added .item-amount,
+.item-modified .icon-button,
+.item-added .icon-button,
 .adj,
 .item-sub {
   color: var(--adj-text);
@@ -794,7 +806,7 @@ a {
 }
 
 .sheet::backdrop {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--backdrop);
 }
 
 .sheet .text-button {

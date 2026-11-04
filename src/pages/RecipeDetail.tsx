@@ -11,7 +11,7 @@ import TagDialog from "../components/TagDialog";
 import RecipeImage from "../components/RecipeImage";
 import { countLabel, formatShortDate, initials, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
-import type { Ingredient, RecipeFull, Step, StepValues } from "../../shared/schema";
+import type { AdjustmentInput, Ingredient, IngredientValues, RecipeFull, Step, StepValues } from "../../shared/schema";
 
 type Sheet = { kind: "ingredient" | "step"; item: Merged<Ingredient> | Merged<Step> | null };
 
@@ -19,6 +19,7 @@ export default function RecipeDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const noteId = useId();
+  const panelId = useId();
   const [full, setFull] = useState<RecipeFull | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState<"ingredient" | "step">("ingredient");
@@ -64,6 +65,10 @@ export default function RecipeDetail() {
     api.listGroups().then(setGroups, () => {});
   }, []);
 
+  const showError = (err: unknown) => {
+    if (err instanceof ApiError) setError(err.message);
+    else if (!(err instanceof SessionExpiredError)) setError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+  };
   // Runs a mutation, refetches, and surfaces the server's message; returns true on success.
   const mutate = async (action: () => Promise<unknown>): Promise<boolean> => {
     if (busy) return false;
@@ -74,8 +79,7 @@ export default function RecipeDetail() {
       await load();
       return true;
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else if (!(err instanceof SessionExpiredError)) setError("Etwas ist schiefgelaufen. Bitte versuche es erneut.");
+      showError(err);
       return false;
     } finally {
       setBusy(false);
@@ -103,7 +107,7 @@ export default function RecipeDetail() {
   const { recipe } = full;
   const merged = mergeRecipe(full);
   const scale = (n: number | null) => scaleAmount(n, recipe.servings, servings);
-  const lastChange = full.adjustments.map((a) => a.updated_at).sort().at(-1);
+  const lastChange = formatShortDate(full.adjustments.map((a) => a.updated_at).sort().at(-1) ?? "");
   const meta = [
     recipe.source_platform && platformLabel(recipe.source_platform),
     recipe.total_minutes && `${recipe.total_minutes} Min gesamt`,
@@ -134,14 +138,15 @@ export default function RecipeDetail() {
   };
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
 
-  const saveValues = (values: object) => {
+  // EditSheet builds values for `kind`; TypeScript cannot tie the two together, hence the casts.
+  const saveValues = (values: IngredientValues | StepValues) => {
     const { kind, item } = sheet!;
-    if (!item) return api.addAdjustment(id, { target_type: kind, action: "add", target_id: null, new_values: values } as never);
-    if (item.status === "added") return api.updateAdjustment(id, item.id, values as never);
-    return api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as never);
+    if (!item) return api.addAdjustment(id, { target_type: kind, action: "add", target_id: null, new_values: values } as AdjustmentInput);
+    if (item.status === "added") return api.updateAdjustment(id, item.id, values);
+    return api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as AdjustmentInput);
   };
   // A note target is the merged row id: the ingredient id, or the add adjustment's id for added rows.
-  const save = (values: object | null, noteText: string | null) => {
+  const save = (values: IngredientValues | StepValues | null, noteText: string | null) => {
     if (!sheet) return;
     return closeAfter(
       mutate(async () => {
@@ -159,7 +164,7 @@ export default function RecipeDetail() {
       try {
         await api.addAdjustment(id, { target_type: "step", action: "remove", target_id: step.id });
         for (const values of pieces) {
-          await api.addAdjustment(id, { target_type: "step", action: "add", target_id: null, insert_after: step.id, new_values: values } as never);
+          await api.addAdjustment(id, { target_type: "step", action: "add", target_id: null, insert_after: step.id, new_values: values });
         }
       } catch (err) {
         await load();
@@ -172,7 +177,9 @@ export default function RecipeDetail() {
     });
   };
 
-  const rows = tab === "ingredient" ? (showOriginal ? full.ingredients : merged.ingredients) : showOriginal ? full.steps : merged.steps;
+  const ingredientRows = showOriginal ? full.ingredients : merged.ingredients;
+  const stepRows = showOriginal ? full.steps : merged.steps;
+  const rows = tab === "ingredient" ? ingredientRows : stepRows;
   let stepNumber = 0;
   const openSheet = (kind: Sheet["kind"], item: Sheet["item"]) => {
     setError("");
@@ -210,7 +217,7 @@ export default function RecipeDetail() {
           <div className="adj-banner">
             <div>
               <strong>{countLabel(merged.adjustmentCount, "eigene Anpassung", "eigene Anpassungen")}</strong>
-              {lastChange && <p className="small">Zuletzt geändert am {formatShortDate(lastChange)}</p>}
+              {lastChange && <p className="small">Zuletzt geändert am {lastChange}</p>}
             </div>
             <button onClick={() => setShowOriginal(!showOriginal)}>{showOriginal ? "Anpassungen zeigen" : "Original zeigen"}</button>
           </div>
@@ -233,11 +240,11 @@ export default function RecipeDetail() {
         </button>
 
         <div className="tabs" role="tablist">
-          <button role="tab" aria-selected={tab === "ingredient"} onClick={() => setTab("ingredient")}>Zutaten · {merged.ingredients.length}</button>
-          <button role="tab" aria-selected={tab === "step"} onClick={() => setTab("step")}>Schritte · {merged.steps.length}</button>
+          <button role="tab" id={`${panelId}-ingredient`} aria-controls={panelId} aria-selected={tab === "ingredient"} onClick={() => setTab("ingredient")}>Zutaten · {ingredientRows.length}</button>
+          <button role="tab" id={`${panelId}-step`} aria-controls={panelId} aria-selected={tab === "step"} onClick={() => setTab("step")}>Schritte · {stepRows.length}</button>
         </div>
 
-        <ul className="items">
+        <ul className="items" role="tabpanel" id={panelId} aria-labelledby={`${panelId}-${tab}`}>
           {rows.map((row) => {
             const item = row as Merged<Ingredient> | Merged<Step>;
             // Raw originals have no status; ItemRow treats showOriginal as "original".
@@ -275,13 +282,15 @@ export default function RecipeDetail() {
           placeholder="Was möchtest du dir merken?"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onBlur={() => note.trim() !== full.note && void mutate(() => api.saveNote(id, note.trim()))}
+          // Not through mutate: its busy guard would drop a blur that lands during another save. A note PUT is idempotent, so overlap is harmless.
+          onBlur={() => note.trim() !== full.note && void api.saveNote(id, note.trim()).then(load, showError)}
         />
         {!recipe.group_id && groups.length > 0 && (
           <button className="add-item" onClick={() => setPicking(true)}>In Gruppe teilen</button>
         )}
         <button
           className="text-button muted-button"
+          disabled={busy}
           onClick={async () => confirm(recipe.group_id ? "Rezept wirklich für alle Mitglieder löschen?" : "Rezept wirklich löschen?") &&
             (await mutate(() => api.deleteRecipe(id))) &&
             navigate(backTo)}
@@ -327,6 +336,7 @@ export default function RecipeDetail() {
       {tagsOpen && (
         <TagDialog
           tags={recipe.tags}
+          busy={busy}
           onChange={(tags) => void mutate(() => api.updateTags(id, tags))}
           onClose={() => setTagsOpen(false)}
         />

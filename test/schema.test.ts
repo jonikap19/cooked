@@ -52,6 +52,7 @@ describe("trimming", () => {
     expect(IngredientValues.parse({ name: " Salz ", amount: null, unit: "" }).name).toBe("Salz");
     expect(StepValues.parse({ text: " x ", duration_minutes: null }).text).toBe("x");
     expect(IngredientValues.safeParse({ name: "  ", amount: null, unit: "" }).success).toBe(false);
+    expect(ParsedRecipe.safeParse({ ...recipe, title: "   " }).success).toBe(false);
     const { z } = await import("zod");
     expect(() => z.toJSONSchema(ParsedRecipe)).not.toThrow();
   });
