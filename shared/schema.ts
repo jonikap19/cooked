@@ -161,6 +161,8 @@ export const ListTick = z.object({ key: z.string().min(1).max(200), ticked: z.bo
 export const ListCheckout = z.object({
   lines: z.array(PantryKey.extend({ key: z.string().min(1).max(200), amount: PantryAmount })).min(1).max(200),
 });
+// What the user confirmed in the "Fertig gekocht" sheet; a null or 0 amount subtracts nothing.
+export const ListCooked = z.object({ items: z.array(PantryKey.extend({ amount: PantryAmount })).max(100) });
 
 export type ListBody = {
   lines: ShoppingLine[];

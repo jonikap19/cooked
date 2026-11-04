@@ -1020,3 +1020,20 @@ a {
   color: var(--primary);
   font-weight: 700;
 }
+
+.cooked-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 96px;
+  align-items: center;
+  gap: 8px;
+}
+
+.cooked-row.is-locked {
+  opacity: 0.5;
+}
+
+.cooked-row input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  margin: 10px;
+}

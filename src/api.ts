@@ -1,4 +1,4 @@
-import type { Adjustment, ListBody, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
+import type { Adjustment, ListBody, Match, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
   constructor(
@@ -86,6 +86,9 @@ export const api = {
   setTick: (key: string, ticked: boolean) => request<void>("/api/list/ticks", send("PUT", { key, ticked })),
   checkout: (lines: { key: string; canonical_name: string; unit: string; amount: number | null }[]) =>
     request<ListBody>("/api/list/checkout", send("POST", { lines })),
+  getMatches: (id: string) => request<Match[]>(`/api/recipes/${id}/matches`),
+  cooked: (id: string, items: { canonical_name: string; unit: string; amount: number }[]) =>
+    request<void>(`/api/recipes/${id}/cooked`, send("POST", { items })),
   putAlias: (source_name: string, canonical_name: string, unit: string) =>
     request<void>("/api/aliases", send("PUT", { source_name, canonical_name, unit })),
   parse: (text: string) => request<ParsedRecipe>("/api/parse", send("POST", { text })),

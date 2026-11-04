@@ -263,3 +263,78 @@ describe("shopping list api", () => {
     expect((await getList(u)).ticked).toEqual([]);
   });
 });
+
+describe("cooked api", () => {
+  const cooked = (email: string, recipe: string, items: unknown[], e = testEnv()) => call(email, "POST", `/api/recipes/${recipe}/cooked`, { items }, e);
+  const stock = (email: string, name: string, amount: number, unit: string) => call(email, "POST", "/api/pantry", { name, amount, unit });
+
+  it("subtracts exactly the confirmed amount and ignores items not in the Vorrat", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await stock(u, "Butter", 200, "g");
+    const res = await cooked(u, r, [
+      { canonical_name: "Butter", unit: "g", amount: 45 },
+      { canonical_name: "Salz", unit: "g", amount: 5 },
+      { canonical_name: "Butter", unit: "g", amount: null },
+    ]);
+    expect(res.status).toBe(204);
+    expect(await pantryOf(u)).toEqual([expect.objectContaining({ canonical_name: "Butter", amount: 155 })]);
+  });
+
+  it("never goes below zero and removes a row that reaches zero", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await stock(u, "Butter", 20, "g");
+    await cooked(u, r, [{ canonical_name: "Butter", unit: "g", amount: 50 }]);
+    expect(await pantryOf(u)).toEqual([]);
+  });
+
+  it("removes the planned entry, also with no items", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await plan(u, r, 2);
+    expect((await cooked(u, r, [])).status).toBe(204);
+    expect((await getList(u)).planned).toEqual([]);
+  });
+
+  it("is 404 for another user's or an unknown recipe, and changes nothing", async () => {
+    const a = user();
+    const b = user();
+    const r = await seed(a, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await stock(b, "Butter", 100, "g");
+    expect((await cooked(b, r, [{ canonical_name: "Butter", unit: "g", amount: 50 }])).status).toBe(404);
+    expect((await cooked(b, "nope", [])).status).toBe(404);
+    expect((await call(b, "GET", `/api/recipes/${r}/matches`)).status).toBe(404);
+    expect((await call(b, "GET", "/api/recipes/nope/matches")).status).toBe(404);
+    expect(await pantryOf(b)).toEqual([expect.objectContaining({ amount: 100 })]);
+    expect((await call(a, "GET", `/api/recipes/${r}/matches`)).status).toBe(200);
+  });
+
+  it("rejects negative or too large amounts and too many items", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    const item = { canonical_name: "Butter", unit: "g" };
+    expect((await cooked(u, r, [{ ...item, amount: -1 }])).status).toBe(400);
+    expect((await cooked(u, r, [{ ...item, amount: 100001 }])).status).toBe(400);
+    expect((await cooked(u, r, Array.from({ length: 101 }, () => ({ ...item, amount: 1 })))).status).toBe(400);
+  });
+
+  it("writes the Vorrat and the planned entry in one batch", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await plan(u, r, 2);
+    await stock(u, "Butter", 200, "g");
+    const DB = new Proxy(env.DB, {
+      get: (target, prop) =>
+        prop === "batch"
+          ? (statements: D1PreparedStatement[]) => target.batch([...statements, target.prepare("INSERT INTO no_such_table VALUES (1)")])
+          : (target as any)[prop].bind(target),
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await cooked(u, r, [{ canonical_name: "Butter", unit: "g", amount: 50 }], testEnv({ DB }));
+    vi.restoreAllMocks();
+    expect(res.status).toBe(500);
+    expect(await pantryOf(u)).toEqual([expect.objectContaining({ amount: 200 })]);
+    expect((await getList(u)).planned).toHaveLength(1);
+  });
+});

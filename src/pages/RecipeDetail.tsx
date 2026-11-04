@@ -263,7 +263,7 @@ export default function RecipeDetail() {
       </div>
 
       <div className="sticky-bottom">
-        <Link to={`/rezept/${id}/kochen`} className="primary-button"><Play size={18} aria-hidden="true" /> Kochen starten</Link>
+        <Link to={`/rezept/${id}/kochen?portionen=${servings}`} className="primary-button"><Play size={18} aria-hidden="true" /> Kochen starten</Link>
       </div>
 
       {sheet && (

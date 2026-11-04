@@ -1,7 +1,8 @@
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Sun, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
+import CookedSheet from "../components/CookedSheet";
 import { playAlarm, unlockAudio } from "../lib/alarm";
 import { durationDiffLabel, formatClock, remainingSeconds, timerChips } from "../lib/timer";
 import { useWakeLock } from "../lib/wakeLock";
@@ -69,6 +70,11 @@ export default function CookMode() {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [index, setIndex] = useState(0);
+  const [cookedOpen, setCookedOpen] = useState(false);
+  const [params] = useSearchParams();
+  const fromQuery = Number(params.get("portionen"));
+  const queryServings = Number.isInteger(fromQuery) && fromQuery >= 1 && fromQuery <= 100 ? fromQuery : null;
+  const [plannedServings, setPlannedServings] = useState<number | null>(null);
   const [awake, setAwake] = useState(true);
   const held = useWakeLock(awake);
   const [timers, setTimers] = useState<Record<string, TimerState>>({});
@@ -106,6 +112,12 @@ export default function CookMode() {
     }
   };
   useEffect(() => void load(), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only asked when the link carried no valid servings; a failure just falls back to the recipe's own.
+  useEffect(() => {
+    if (queryServings !== null) return;
+    api.getList().then((body) => setPlannedServings(body.planned.find((p) => p.recipe_id === id)?.servings ?? null)).catch(() => {});
+  }, [id, queryServings]);
 
   if (notFound) {
     return (
@@ -178,10 +190,19 @@ export default function CookMode() {
       )}
       <nav className="cook-nav">
         <button className="cook-back" disabled={index === 0} onClick={() => setIndex(index - 1)}><ChevronLeft size={20} aria-hidden="true" />Zurück</button>
-        <button className="cook-next" onClick={() => (last || !step ? back() : setIndex(index + 1))}>
-          {last || !step ? "Fertig" : <>Weiter<ChevronRight size={20} aria-hidden="true" /></>}
-        </button>
+        {last || !step ? (
+          <button className="cook-next" onClick={() => setCookedOpen(true)}>Fertig gekocht</button>
+        ) : (
+          <button className="cook-next" onClick={() => setIndex(index + 1)}>Weiter<ChevronRight size={20} aria-hidden="true" /></button>
+        )}
       </nav>
+      {cookedOpen && (
+        <CookedSheet
+          full={full}
+          initialServings={queryServings ?? plannedServings ?? full.recipe.servings}
+          onClose={() => setCookedOpen(false)}
+        />
+      )}
     </main>
   );
 }

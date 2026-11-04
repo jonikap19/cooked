@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { mergeRecipe } from "../shared/merge";
-import { ListCheckout, ListRecipeAdd, ListTick, PantryAdd, type ListBody } from "../shared/schema";
+import { ListCheckout, ListCooked, ListRecipeAdd, ListTick, PantryAdd, type ListBody } from "../shared/schema";
 import { computeShoppingList, scaledNeeds } from "../shared/shopping";
 import { toBase } from "../shared/units";
 import type { AppEnv } from "./auth";
@@ -135,4 +135,30 @@ list.post("/api/list/checkout", async (c) => {
   // One batch is one D1 transaction: the Vorrat is never credited without the items and ticks being cleared, so a retry can't add twice.
   await DB.batch([...pantryWrites, ...itemWrites, deleteTicks(DB, uid, lines.map((l) => l.key))]);
   return c.json(await listBody(c.env, uid));
+});
+
+list.get("/api/recipes/:id/matches", async (c) => {
+  const id = c.req.param("id");
+  // matchRecipe answers [] for a foreign recipe too, so ownership is checked here.
+  if (!(await ownsRecipe(c, id))) return c.json(notFound, 404);
+  return c.json(await matchRecipe(c.env, c.var.userId, id));
+});
+
+list.post("/api/recipes/:id/cooked", async (c) => {
+  const parsed = ListCooked.safeParse(await readJson(c));
+  if (!parsed.success) return c.json(invalid, 400);
+  const { DB } = c.env;
+  const uid = c.var.userId;
+  const id = c.req.param("id");
+  if (!(await ownsRecipe(c, id))) return c.json(notFound, 404);
+  // Exactly the confirmed amounts, never recomputed here.
+  const changes = parsed.data.items
+    .filter((i) => i.amount)
+    .map((i) => ({ canonical_name: i.canonical_name, unit: i.unit, delta: i.amount, op: "subtract" as const }));
+  // One batch: the Vorrat is never reduced without the planned entry going, so a retry can't subtract twice.
+  await DB.batch([
+    ...(await pantryStatements(DB, uid, changes)),
+    DB.prepare("DELETE FROM planned_recipes WHERE user_id = ? AND recipe_id = ?").bind(uid, id),
+  ]);
+  return c.body(null, 204);
 });
