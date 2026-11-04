@@ -58,6 +58,10 @@ const send = (method: string, body?: unknown): RequestInit => ({ method, body: b
 // The server strips the note author from shared previews.
 export type SharedPreview = Omit<Snapshot, "ingredient_notes"> & { ingredient_notes: Omit<IngredientNote, "author">[] };
 
+export interface GroupSummary { id: string; name: string; member_count: number; recipe_count: number }
+export interface GroupDetail { id: string; name: string; members: string[]; invites: string[]; recipes: RecipeSummary[] }
+export interface Invite { group_id: string; group_name: string; invited_by: string }
+
 export const api = {
   me: () => request<{ userId: string }>("/api/me"),
   listRecipes: () => request<RecipeSummary[]>("/api/recipes"),
@@ -109,5 +113,14 @@ export const api = {
   getShared: (token: string) =>
     request<{ recipe: SharedPreview; expires_at: string; shared_by_initials: string }>(`/api/share/${encodeURIComponent(token)}`),
   importShared: (token: string) => request<{ id: string }>(`/api/share/${encodeURIComponent(token)}/import`, send("POST")),
+  listGroups: () => request<GroupSummary[]>("/api/groups"),
+  createGroup: (name: string) => request<{ id: string }>("/api/groups", send("POST", { name })),
+  getGroup: (id: string) => request<GroupDetail>(`/api/groups/${id}`),
+  inviteToGroup: (id: string, email: string) => request<void>(`/api/groups/${id}/invites`, send("POST", { email })),
+  leaveGroup: (id: string) => request<void>(`/api/groups/${id}/members/me`, send("DELETE")),
+  listInvites: () => request<Invite[]>("/api/invites"),
+  acceptInvite: (groupId: string) => request<void>(`/api/invites/${groupId}/accept`, send("POST")),
+  declineInvite: (groupId: string) => request<void>(`/api/invites/${groupId}`, send("DELETE")),
+  shareToGroup: (id: string, group_id: string) => request<{ id: string }>(`/api/recipes/${id}/share-to-group`, send("POST", { group_id })),
   splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };

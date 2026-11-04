@@ -1,14 +1,15 @@
 import { ChevronLeft, ExternalLink, Minus, Play, Plus, Share2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { ApiError, api, SessionExpiredError } from "../api";
+import { ApiError, api, SessionExpiredError, type GroupSummary } from "../api";
 import EditSheet from "../components/EditSheet";
 import SplitSheet from "../components/SplitSheet";
 import ItemRow from "../components/ItemRow";
+import GroupPicker from "../components/GroupPicker";
 import ShareSheet from "../components/ShareSheet";
 import TagDialog from "../components/TagDialog";
 import RecipeImage from "../components/RecipeImage";
-import { countLabel, formatShortDate, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
+import { countLabel, formatShortDate, initials, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { Ingredient, RecipeFull, Step, StepValues } from "../../shared/schema";
 
@@ -27,6 +28,8 @@ export default function RecipeDetail() {
   const [splitting, setSplitting] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,6 +59,10 @@ export default function RecipeDetail() {
   useEffect(() => {
     api.getList().then((list) => setPlanned(list.planned.some((p) => p.recipe_id === id)), () => {});
   }, [id]);
+  // Only needed for "In Gruppe teilen"; a failed lookup just hides it.
+  useEffect(() => {
+    api.listGroups().then(setGroups, () => {});
+  }, []);
 
   // Runs a mutation, refetches, and surfaces the server's message; returns true on success.
   const mutate = async (action: () => Promise<unknown>): Promise<boolean> => {
@@ -115,6 +122,15 @@ export default function RecipeDetail() {
       await (planned ? api.unplanRecipe(id) : api.planRecipe(id, servings!));
       setPlanned(!planned);
     });
+  // Group recipes only: who wrote the adjustments and the note on a row. Null authors (pre-groups rows) show nothing.
+  const sharedByFor = (itemId: string, adjustmentIds: string[]) => {
+    if (!recipe.group_id) return undefined;
+    const authors = [
+      ...full.adjustments.filter((a) => adjustmentIds.includes(a.id)).map((a) => a.author),
+      full.ingredient_notes.find((n) => n.target_id === itemId)?.author,
+    ];
+    return [...new Set(authors.filter((a): a is string => !!a).map(initials))].join(", ") || undefined;
+  };
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
 
   const saveValues = (values: object) => {
@@ -231,6 +247,7 @@ export default function RecipeDetail() {
                 item={item}
                 note={tab === "ingredient" ? noteFor(item.id) : undefined}
                 kind={tab}
+                sharedBy={showOriginal ? undefined : sharedByFor(item.id, (item as Merged<Ingredient>).adjustmentIds ?? [])}
                 number={stepNumber}
                 scale={scale}
                 showOriginal={showOriginal}
@@ -259,6 +276,9 @@ export default function RecipeDetail() {
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => note.trim() !== full.note && void mutate(() => api.saveNote(id, note.trim()))}
         />
+        {!recipe.group_id && groups.length > 0 && (
+          <button className="add-item" onClick={() => setPicking(true)}>In Gruppe teilen</button>
+        )}
         <button
           className="text-button muted-button"
           onClick={async () => confirm("Rezept wirklich löschen?") && (await mutate(() => api.deleteRecipe(id))) && navigate("/")}
@@ -299,6 +319,7 @@ export default function RecipeDetail() {
           onClose={() => setSplitting(false)}
         />
       )}
+      {picking && <GroupPicker groups={groups} recipeId={id} onClose={() => setPicking(false)} />}
       {sharing && <ShareSheet recipeId={id} onClose={() => setSharing(false)} />}
       {tagsOpen && (
         <TagDialog

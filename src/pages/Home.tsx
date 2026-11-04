@@ -2,6 +2,7 @@ import { Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
+import Invites from "../components/Invites";
 import RecipeCard from "../components/RecipeCard";
 import TabBar from "../components/TabBar";
 import { countLabel, initials } from "../../shared/format";
@@ -55,6 +56,8 @@ export default function Home() {
         </div>
         <div className="avatar">{initials(userId)}</div>
       </header>
+
+      <Invites />
 
       <label className="search">
         <Search size={20} aria-hidden />

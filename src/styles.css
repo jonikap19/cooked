@@ -1043,3 +1043,64 @@ a {
   right: auto;
   left: 76px;
 }
+
+.invites {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.invite {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.invite-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.invite-actions button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.invite-accept {
+  border: 0;
+  background: var(--primary);
+  color: var(--surface);
+}
+
+.invite-decline {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.invite-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.avatar-pending {
+  opacity: 0.5;
+}
+
+.inline-round {
+  position: static;
+  flex: none;
+}
