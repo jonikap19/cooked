@@ -30,14 +30,15 @@ const AiOutput = z.object({ items: z.array(z.unknown()) });
 
 const RETRY_FALLBACK_MS = 24 * 3600_000;
 
-const fallback = (i: Input): Canonical => ({ canonical_name: i.name.trim(), unit: normalizeUnit(i.unit).unit });
+// Capped at the Vorrat name limit so a fallback name can later become an editable pantry item.
+const fallback = (i: Input): Canonical => ({ canonical_name: i.name.trim().slice(0, 100), unit: normalizeUnit(i.unit).unit });
 
 /** Pantry names first, then earlier matches, most recent first. */
 async function knownNames(DB: D1Database, userId: string): Promise<string[]> {
   const [pantry, matched] = await DB.batch<{ canonical_name: string }>([
     DB.prepare("SELECT canonical_name FROM pantry_items WHERE user_id = ?").bind(userId),
     DB.prepare(
-      "SELECT canonical_name FROM ingredient_matches WHERE user_id = ? GROUP BY canonical_name ORDER BY MAX(matched_at) DESC LIMIT 200",
+      "SELECT canonical_name FROM ingredient_matches WHERE user_id = ? AND fallback = 0 GROUP BY canonical_name ORDER BY MAX(matched_at) DESC LIMIT 200",
     ).bind(userId),
   ]);
   return [...new Set([...pantry.results, ...matched.results].map((r) => r.canonical_name))].slice(0, 200);
@@ -57,6 +58,7 @@ async function aiMatch(env: Env, userId: string, inputs: Input[]): Promise<Map<s
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify({ names: inputs, known }) },
       ],
+      // ponytail: at roughly 30 ingredients the JSON output is truncated and the whole recipe falls back; chunk the names or raise max_tokens.
       max_tokens: 1024,
       response_format: { type: "json_schema", json_schema: jsonSchema },
     } as never)) as { response?: unknown };

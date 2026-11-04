@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ApiError, api, SessionExpiredError } from "../api";
 import TabBar from "../components/TabBar";
-import { parseNumber } from "../lib/edit";
+import { pantryAmount } from "../lib/edit";
 import type { PantryItem } from "../../shared/schema";
 
 const GENERIC_ERROR = "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
@@ -13,7 +13,9 @@ function messageOf(err: unknown): string {
   return err instanceof SessionExpiredError ? "" : GENERIC_ERROR;
 }
 
-const amountLabel = (item: PantryItem) => (item.amount === null ? "etwas" : `${String(item.amount).replace(".", ",")} ${item.unit}`.trim());
+// No thousands separator, so parseNumber reads the edit prefill back.
+const formatAmount = (amount: number) => amount.toLocaleString("de-DE", { maximumFractionDigits: 3, useGrouping: false });
+const amountLabel = (item: PantryItem) => (item.amount === null ? "etwas" : `${formatAmount(item.amount)} ${item.unit}`.trim());
 
 interface SheetProps {
   item: PantryItem | null; // null = new item
@@ -27,7 +29,7 @@ interface SheetProps {
 function PantrySheet({ item, onSave, onDelete, onClose, error: serverError, busy }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const ids = [useId(), useId(), useId()];
-  const [amount, setAmount] = useState(String(item?.amount ?? "").replace(".", ","));
+  const [amount, setAmount] = useState(item?.amount == null ? "" : formatAmount(item.amount));
   const [unit, setUnit] = useState(item?.unit ?? "");
   const [name, setName] = useState(item?.canonical_name ?? "");
   const [error, setError] = useState("");
@@ -36,11 +38,10 @@ function PantrySheet({ item, onSave, onDelete, onClose, error: serverError, busy
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const parsed = parseNumber(amount);
     if (!name.trim()) return setError("Bitte einen Namen eingeben.");
-    // Empty amount means "etwas"; anything else must be a positive number.
-    if (amount.trim() !== "" && (parsed === null || parsed <= 0)) return setError("Bitte eine Menge größer als 0 eingeben.");
-    onSave(name.trim(), parsed, unit.trim());
+    const parsed = pantryAmount(amount, item?.always_at_home);
+    if ("error" in parsed) return setError(parsed.error);
+    onSave(name.trim(), parsed.amount, unit.trim());
   };
 
   return (
@@ -97,6 +98,12 @@ export default function Pantry() {
     }
   };
 
+  // Already gone (404) is the state the user wanted; the reload shows it.
+  const deleteItem = (item: PantryItem) =>
+    api.deletePantry({ canonical_name: item.canonical_name, unit: item.unit }).catch((err) => {
+      if (!(err instanceof ApiError && err.status === 404)) throw err;
+    });
+
   const save = (name: string, amount: number | null, unit: string) => {
     const current = sheet?.item;
     void mutate(
@@ -129,6 +136,7 @@ export default function Pantry() {
             <label className="pantry-toggle">
               <input
                 type="checkbox"
+                aria-label={`Immer da: ${item.canonical_name}`}
                 checked={item.always_at_home}
                 disabled={busy}
                 onChange={(event) =>
@@ -152,7 +160,7 @@ export default function Pantry() {
         <PantrySheet
           item={sheet.item}
           onSave={save}
-          onDelete={() => sheet.item && void mutate(() => api.deletePantry({ canonical_name: sheet.item!.canonical_name, unit: sheet.item!.unit }), true)}
+          onDelete={() => sheet.item && void mutate(() => deleteItem(sheet.item!), true)}
           onClose={() => setSheet(null)}
           error={error}
           busy={busy}

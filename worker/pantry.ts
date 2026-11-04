@@ -28,6 +28,7 @@ const remove = (db: D1Database, userId: string, name: string, unit: string) =>
 /** Applies all changes in order from one read, written as one atomic batch. Never creates a row on subtract. */
 export async function applyToPantry(db: D1Database, userId: string, changes: Change[]): Promise<void> {
   if (!changes.length) return;
+  // ponytail: read-then-write, so concurrent edits of the same row can lose an update (fine for a few users); use a conditional UPDATE or single-statement SQL upsert if it matters.
   // ponytail: reads the user's whole Vorrat; fine for a few hundred rows, filter by key if it grows.
   const { results } = await db.prepare(SELECT).bind(userId).all<Row>();
   const rows = new Map(results.map((r) => [keyOf(r.canonical_name, r.unit), r]));
@@ -74,6 +75,7 @@ pantry.patch("/api/pantry", async (c) => {
   const { DB } = c.env;
   const uid = c.var.userId;
   const { set } = parsed.data;
+  // ponytail: same read-then-write race as applyToPantry; conditional UPDATE / single-statement SQL upsert if it matters.
   const amountOf = (set.amount !== undefined);
   // One read for both the edited row and a possible collision target; the target key is only known after computing.
   const target0 = { name: set.canonical_name ?? parsed.data.canonical_name, unit: set.unit === undefined ? parsed.data.unit : toBase(null, set.unit).unit };

@@ -896,6 +896,8 @@ a {
 
 .sticky-bottom.above-tabs {
   bottom: calc(56px + env(safe-area-inset-bottom));
+  /* The tab bar already clears the safe area; counting it in the padding too leaves a gap. */
+  padding-bottom: 16px;
 }
 
 .tab-bar {

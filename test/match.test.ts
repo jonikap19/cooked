@@ -186,6 +186,26 @@ describe("matchRecipe", () => {
     expect(usr.content).toContain("GEHEIM-ZUTAT");
   });
 
+  it("offers only non-fallback match names back to the AI", async () => {
+    const u = user();
+    const ok = await seed(u, [["Paprika", "Stück"]]);
+    await matchRecipe(envWith(fakeAi().ai), u, ok.id);
+    const bad = await seed(u, [["Rohe Schreibweise", "g"]]);
+    await matchRecipe(envWith(fakeAi(() => ({ items: [] })).ai), u, bad.id);
+    const r = await seed(u, [["Salz", "g"]]);
+    const { ai, calls } = fakeAi();
+    await matchRecipe(envWith(ai), u, r.id);
+    expect(calls[0].input.known).toContain("Std Paprika");
+    expect(calls[0].input.known).not.toContain("Rohe Schreibweise");
+  });
+
+  it("caps the fallback name at 100 characters", async () => {
+    const u = user();
+    const r = await seed(u, [[`  ${"x".repeat(150)}`, "g"]]);
+    const [m] = await matchRecipe(envWith(fakeAi(() => ({ items: [] })).ai), u, r.id);
+    expect(m.canonical_name).toBe("x".repeat(100));
+  });
+
   it("returns [] for another user's recipe and stores nothing", async () => {
     const r = await seed(user(), [["Zwiebel", ""]]);
     const { ai, calls } = fakeAi();
