@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { countLabel, formatAmount } from "../../shared/format";
-import { changedKeys, parseNumber } from "../lib/edit";
+import { amountFromField, changedKeys, parseNumber } from "../lib/edit";
 import type { Merged } from "../../shared/merge";
 import type { Ingredient, IngredientValues, Step, StepValues } from "../../shared/schema";
 
@@ -44,7 +44,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
     }
     const next: Values =
       kind === "ingredient"
-        ? { name: name.trim(), amount: parseNumber(amount), unit: unit.trim() }
+        ? { name: name.trim(), amount: amountFromField(amount, ingredient?.amount ?? null), unit: unit.trim() }
         : { text: text.trim(), duration_minutes: parseNumber(duration) };
     if (!item) return onSave(next, null);
     const changed = changedKeys(item as unknown as Values, next);

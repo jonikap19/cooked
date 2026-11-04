@@ -1,7 +1,14 @@
+import { formatAmount } from "../../shared/format";
+
 // "1,5" and "1.5" both work; empty or unparsable -> null.
 export function parseNumber(raw: string): number | null {
   const value = Number(raw.trim().replace(",", "."));
   return raw.trim() === "" || Number.isNaN(value) ? null : value;
+}
+
+// The sheet prefills a rounded amount; an untouched field must keep the exact stored value.
+export function amountFromField(raw: string, stored: number | null): number | null {
+  return raw === formatAmount(stored) ? stored : parseNumber(raw);
 }
 
 // Amount field of a Vorrat sheet: empty = "etwas" (null); otherwise a positive number.
