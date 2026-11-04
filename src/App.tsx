@@ -7,6 +7,7 @@ import OwnRecipe from "./pages/OwnRecipe";
 import Home from "./pages/Home";
 import Pantry from "./pages/Pantry";
 import ShoppingList from "./pages/ShoppingList";
+import SharedRecipe from "./pages/SharedRecipe";
 import RecipeDetail from "./pages/RecipeDetail";
 
 function SessionExpired() {
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/neu" element={<AddRecipe />} />
         <Route path="/neu/eigenes" element={<OwnRecipe />} />
         <Route path="/rezept/:id" element={<RecipeDetail />} />
+        <Route path="/teilen/:token" element={<SharedRecipe />} />
         <Route path="/rezept/:id/kochen" element={<CookMode />} />
       </Routes>
     </BrowserRouter>

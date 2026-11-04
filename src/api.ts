@@ -1,3 +1,4 @@
+import type { Snapshot } from "../worker/copy";
 import type { Adjustment, ListBody, Match, AdjustmentInput, NewRecipe, PantryItem, ParsedRecipe, RecipeFull, RecipeSummary, StepValues } from "../shared/schema";
 
 export class ApiError extends Error {
@@ -100,5 +101,10 @@ export const api = {
       image_url: string | null;
       caption: string | null;
     }>("/api/import-link", send("POST", { url })),
+  shareRecipe: (id: string, mode: "with_comments" | "baked") =>
+    request<{ url: string; expires_at: string }>(`/api/recipes/${id}/share`, send("POST", { mode })),
+  getShared: (token: string) =>
+    request<{ recipe: Snapshot; expires_at: string; shared_by_initials: string }>(`/api/share/${token}`),
+  importShared: (token: string) => request<{ id: string }>(`/api/share/${token}/import`, send("POST")),
   splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };
