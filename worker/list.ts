@@ -6,7 +6,7 @@ import { toBase } from "../shared/units";
 import type { AppEnv } from "./auth";
 import type { Env } from "./index";
 import { matchName, matchRecipe } from "./match";
-import { applyToPantry, readPantry } from "./pantry";
+import { pantryStatements, readPantry } from "./pantry";
 import { invalid, loadRecipe, notFound, ownsRecipe, readJson } from "./recipes";
 
 type Item = { id: string; canonical_name: string; unit: string; amount: number | null };
@@ -119,7 +119,7 @@ list.post("/api/list/checkout", async (c) => {
   const items = new Map(results.map((i) => [`item:${i.id}`, i]));
 
   // Exactly the confirmed amounts go into the Vorrat; a foreign or unknown item key only skips the item update below.
-  await applyToPantry(
+  const pantryWrites = await pantryStatements(
     DB,
     uid,
     lines.map((l) => ({ canonical_name: l.canonical_name, unit: l.unit, delta: l.amount, op: "add" })),
@@ -132,6 +132,7 @@ list.post("/api/list/checkout", async (c) => {
       ? [DB.prepare("DELETE FROM list_items WHERE id = ? AND user_id = ?").bind(item.id, uid)]
       : [DB.prepare("UPDATE list_items SET amount = ? WHERE id = ? AND user_id = ?").bind(item.amount - l.amount, item.id, uid)];
   });
-  await DB.batch([...itemWrites, deleteTicks(DB, uid, lines.map((l) => l.key))]);
+  // One batch is one D1 transaction: the Vorrat is never credited without the items and ticks being cleared, so a retry can't add twice.
+  await DB.batch([...pantryWrites, ...itemWrites, deleteTicks(DB, uid, lines.map((l) => l.key))]);
   return c.json(await listBody(c.env, uid));
 });

@@ -157,7 +157,7 @@ export const PantryEdit = PantryKey.extend({
 
 export const ListRecipeAdd = z.object({ recipe_id: z.string().min(1).max(100), servings: z.number().int().min(1).max(100) });
 export const ListTick = z.object({ key: z.string().min(1).max(200), ticked: z.boolean() });
-// Amounts are what the user confirmed: never negative, because applyToPantry does not guard against it.
+// Amounts are what the user confirmed: never negative, because pantryStatements does not guard against it.
 export const ListCheckout = z.object({
   lines: z.array(PantryKey.extend({ key: z.string().min(1).max(200), amount: PantryAmount })).min(1).max(200),
 });

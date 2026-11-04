@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { matchRecipe } from "../worker/match";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
@@ -129,6 +129,41 @@ describe("shopping list api", () => {
     expect((await call(b, "DELETE", `/api/list/items/${id}`)).status).toBe(404);
     expect((await call(a, "DELETE", `/api/list/items/${id}`)).status).toBe(204);
     expect((await getList(a)).lines).toEqual([]);
+  });
+
+  it("writes Vorrat, typed items and ticks in one batch, so a failed checkout changes nothing", async () => {
+    const u = user();
+    const r = await seed(u, "Kuchen", 2, [["Butter", 60, "g"]]);
+    await plan(u, r, 2);
+    const { id } = await addItem(u, "Milch", 2, "l");
+    const [butter] = (await getList(u)).lines.filter((l: any) => l.canonical_name === "Butter");
+    await call(u, "PUT", "/api/list/ticks", { key: butter.key, ticked: true });
+
+    // Every batch gets a failing last statement; D1 rolls the whole batch back.
+    const batches: number[] = [];
+    const DB = new Proxy(env.DB, {
+      get: (target, prop) =>
+        prop === "batch"
+          ? (statements: D1PreparedStatement[]) => {
+              batches.push(statements.length);
+              return target.batch([...statements, target.prepare("INSERT INTO no_such_table VALUES (1)")]);
+            }
+          : (target as any)[prop].bind(target),
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const lines = [
+      { key: butter.key, canonical_name: "Butter", unit: "g", amount: 60 },
+      { key: `item:${id}`, canonical_name: "Milch", unit: "ml", amount: 2000 },
+    ];
+    const res = await app.request("/api/list/checkout", { method: "POST", headers: await authHeaders(u), body: JSON.stringify({ lines }) }, testEnv({ DB }));
+    vi.restoreAllMocks();
+
+    expect(res.status).toBe(500);
+    expect(batches).toEqual([4]); // butter upsert, milk upsert, item delete, tick clear
+    expect(await pantryOf(u)).toEqual([]);
+    const body = await getList(u);
+    expect(body.ticked).toEqual([butter.key]);
+    expect(body.lines).toEqual(expect.arrayContaining([expect.objectContaining({ key: `item:${id}`, amount: 2000 })]));
   });
 
   it("rejects out-of-range checkout amounts and bad bodies", async () => {
