@@ -65,12 +65,12 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
         {kind === "ingredient" ? (
           <>
             {servingsHint && <p className="hint">Mengen für {countLabel(servingsHint, "Portion", "Portionen")}</p>}
-            <label className="field-label" htmlFor={ids[0]}>Menge</label>
-            <input id={ids[0]} className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <label className="field-label" htmlFor={ids[1]}>Einheit</label>
-            <UnitSelect id={ids[1]} value={unit} onChange={setUnit} />
             <label className="field-label" htmlFor={ids[2]}>Name</label>
             <input id={ids[2]} className="field" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="field-label" htmlFor={ids[1]}>Einheit</label>
+            <UnitSelect id={ids[1]} value={unit} onChange={setUnit} />
+            <label className="field-label" htmlFor={ids[0]}>Menge</label>
+            <input id={ids[0]} className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
             <label className="spice-check">
               <input type="checkbox" checked={spice} onChange={(e) => setSpice(e.target.checked)} /> Gewürz
             </label>

@@ -137,10 +137,14 @@ export async function matchRecipe(env: Env, userId: string, recipeId: string): P
   });
 }
 
-/** Standard name and unit for one typed name (alias, then AI, then fallback); stores nothing. */
+/** Standard name and unit for one typed name (alias, then a name I already use, then AI, then fallback); stores nothing. */
 export async function matchName(env: Env, userId: string, name: string, unit: string): Promise<Canonical> {
-  const alias = (await aliasesFor(env.DB, userId, [nameKey(name)])).get(nameKey(name));
+  const key = nameKey(name);
+  const alias = (await aliasesFor(env.DB, userId, [key])).get(key);
   if (alias) return alias;
+  // A picked suggestion is already a standard name: skip the AI so it isn't renamed or rate limited.
+  const known = (await knownItems(env.DB, userId)).find((item) => nameKey(item.name) === key);
+  if (known) return { canonical_name: known.name, unit: known.unit };
   return (await aiMatch(env, userId, [{ name, unit }])).get(name) ?? fallback({ name, unit });
 }
 
