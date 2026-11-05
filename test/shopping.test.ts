@@ -7,7 +7,7 @@ const need = (canonical_name: string, unit: string, amount: number | null, recip
   canonical_name, unit, amount, recipe_title, source_name,
 });
 const stock = (canonical_name: string, unit: string, amount: number | null, always_at_home = false): PantryItem => ({
-  canonical_name, unit, amount, always_at_home,
+  canonical_name, unit, amount, always_at_home, spice: false,
 });
 const ingredient = (id: string, name: string, amount: number | null, unit: string, status: Merged<Ingredient>["status"] = "original"): Merged<Ingredient> =>
   ({ id, position: 0, name, amount, unit, spice: false, status, original: null, adjustmentIds: [] });

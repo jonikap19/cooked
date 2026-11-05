@@ -6,22 +6,22 @@ import type { AppEnv } from "./auth";
 import { knownItems, matchName } from "./match";
 import { invalid, notFound, readJson } from "./recipes";
 
-type Row = { canonical_name: string; unit: string; amount: number | null; always_at_home: number };
-type Change = { canonical_name: string; unit: string; delta: number | null; op: "add" | "subtract" };
+type Row = { canonical_name: string; unit: string; amount: number | null; always_at_home: number; spice: number };
+type Change = { canonical_name: string; unit: string; delta: number | null; op: "add" | "subtract"; spice?: boolean };
 
 const keyOf = (name: string, unit: string) => JSON.stringify([name, unit]);
-const toItem = (r: Row): PantryItem => ({ ...r, always_at_home: r.always_at_home === 1 });
+const toItem = (r: Row): PantryItem => ({ ...r, always_at_home: r.always_at_home === 1, spice: r.spice === 1 });
 // An item that reaches zero disappears unless it is "Immer da".
 const isGone = (r: Pick<Row, "amount" | "always_at_home">) => r.amount === 0 && r.always_at_home === 0;
 
-const SELECT = "SELECT canonical_name, unit, amount, always_at_home FROM pantry_items WHERE user_id = ?";
+const SELECT = "SELECT canonical_name, unit, amount, always_at_home, spice FROM pantry_items WHERE user_id = ?";
 const upsert = (db: D1Database, userId: string, r: Row) =>
   db
     .prepare(
-      `INSERT INTO pantry_items (user_id, canonical_name, unit, amount, always_at_home) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (user_id, canonical_name, unit) DO UPDATE SET amount = excluded.amount, always_at_home = excluded.always_at_home`,
+      `INSERT INTO pantry_items (user_id, canonical_name, unit, amount, always_at_home, spice) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id, canonical_name, unit) DO UPDATE SET amount = excluded.amount, always_at_home = excluded.always_at_home, spice = excluded.spice`,
     )
-    .bind(userId, r.canonical_name, r.unit, r.amount, r.always_at_home);
+    .bind(userId, r.canonical_name, r.unit, r.amount, r.always_at_home, r.spice);
 const remove = (db: D1Database, userId: string, name: string, unit: string) =>
   db.prepare("DELETE FROM pantry_items WHERE user_id = ? AND canonical_name = ? AND unit = ?").bind(userId, name, unit);
 
@@ -40,7 +40,7 @@ export async function pantryStatements(db: D1Database, userId: string, changes: 
     const row = rows.get(key);
     if (c.op === "subtract" && (!row || row.always_at_home)) continue; // "Immer da" is never used up
     const amount = c.op === "add" ? addAmount(row?.amount ?? null, c.delta) : subtractAmount(row!.amount, c.delta);
-    rows.set(key, { canonical_name: row?.canonical_name ?? c.canonical_name, unit: c.unit, amount, always_at_home: row?.always_at_home ?? 0 });
+    rows.set(key, { canonical_name: row?.canonical_name ?? c.canonical_name, unit: c.unit, amount, always_at_home: row?.always_at_home ?? 0, spice: c.spice ? 1 : (row?.spice ?? 0) });
     touched.add(key);
   }
   return [...touched].map((key) => {
@@ -76,11 +76,11 @@ pantry.post("/api/pantry", async (c) => {
   if (!parsed.success) return c.json(invalid, 400);
   const { DB } = c.env;
   const uid = c.var.userId;
-  const { name, amount, unit } = parsed.data;
+  const { name, amount, unit, spice } = parsed.data;
   // The matcher only names the item: the typed amount stays in the typed unit, so it never crosses units.
   const { canonical_name } = await matchName(c.env, uid, name, unit);
   const base = toBase(amount, unit);
-  await applyToPantry(DB, uid, [{ canonical_name, unit: base.unit, delta: base.amount, op: "add" }]);
+  await applyToPantry(DB, uid, [{ canonical_name, unit: base.unit, delta: base.amount, op: "add", spice }]);
   // Found by nameKey like pantryStatements, since an existing row keeps its stored spelling.
   const item = (await readPantry(DB, uid)).find((r) => nameKey(r.canonical_name) === nameKey(canonical_name) && r.unit === base.unit);
   return c.json(item!);
@@ -108,10 +108,11 @@ pantry.patch("/api/pantry", async (c) => {
     canonical_name: target0.name,
     ...(set.unit === undefined ? { unit: current.unit, amount } : toBase(amount, set.unit)),
     always_at_home: set.always_at_home === undefined ? current.always_at_home : set.always_at_home ? 1 : 0,
+    spice: set.spice === undefined ? current.spice : set.spice ? 1 : 0,
   };
   const target = keyOf(edited.canonical_name, edited.unit) === keyOf(current.canonical_name, current.unit) ? undefined : pick(edited.canonical_name, edited.unit);
   const final: Row = target
-    ? { ...edited, amount: addAmount(target.amount, edited.amount), always_at_home: target.always_at_home | edited.always_at_home }
+    ? { ...edited, amount: addAmount(target.amount, edited.amount), always_at_home: target.always_at_home | edited.always_at_home, spice: target.spice | edited.spice }
     : edited;
 
   await DB.batch([
