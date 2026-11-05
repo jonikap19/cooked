@@ -73,6 +73,9 @@ export default function OwnRecipe() {
           <input className="field own-amount" aria-label="Menge" inputMode="decimal" placeholder="Menge" value={ingredient.amount} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { amount: event.target.value }) })} />
           <div className="own-unit"><UnitSelect aria-label="Einheit" value={ingredient.unit} onChange={(unit) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { unit }) })} /></div>
           <input className="field own-grow" aria-label="Zutat" placeholder="Zutat" maxLength={200} value={ingredient.name} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { name: event.target.value }) })} />
+          <label className="spice-check">
+            <input type="checkbox" checked={ingredient.spice} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { spice: event.target.checked }) })} /> Gewürz
+          </label>
           <button className="icon-button" aria-label="Zutat entfernen" onClick={() => setForm({ ...form, ingredients: without(form.ingredients, index) })}>
             <X aria-hidden="true" />
           </button>

@@ -8,8 +8,8 @@ const recipe = {
   servings: 2,
   total_minutes: 25,
   ingredients: [
-    { name: "Nudeln", amount: 200, unit: "g" },
-    { name: "Salz", amount: null, unit: "" },
+    { name: "Nudeln", amount: 200, unit: "g", spice: false },
+    { name: "Salz", amount: null, unit: "", spice: true },
   ],
   steps: [{ text: "Kochen", duration_minutes: 10 }],
 };

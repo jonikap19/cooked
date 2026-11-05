@@ -14,6 +14,7 @@ Regeln:
 - Mengen (amount) sind Zahlen: "½" wird 0.5, "1 1/2" wird 1.5, Bereiche wie "2-3" ergeben die untere Grenze (2).
 - Wenn keine Menge genannt ist (z. B. "nach Geschmack", "etwas"), setze amount auf null.
 - Einheiten (unit): ${UNITS.filter(Boolean).join(", ")}. Nimm die passendste; passt keine, nimm die Einheit aus dem Text. Ohne Einheit: leerer String.
+- spice: true für Gewürze, getrocknete Kräuter, Salz, Pfeffer und Gewürzmischungen, sonst false (frische Kräuter, z. B. im Bund, sind false).
 - Erfinde niemals Zutaten, die nicht im Text stehen.
 - Ein Arbeitsschritt pro Schritt: höchstens zwei kurze Sätze, nur eine Handlung. Teile zusammengesetzte Anweisungen bei "dann", "danach", "anschließend", "inzwischen" und ";" in eigene Schritte. Eine Dauer bleibt bei der Handlung, zu der sie gehört. Führe nie Schritte zusammen. Behalte Reihenfolge und Wortlaut so weit wie möglich bei.
 - duration_minutes eines Schritts nur setzen, wenn im Text eine Dauer genannt wird, sonst null.

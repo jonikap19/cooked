@@ -878,6 +878,7 @@ textarea.field[readonly] {
 
 .own-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
@@ -1120,4 +1121,22 @@ textarea.field[readonly] {
 .inline-round {
   position: static;
   flex: none;
+}
+
+.spice-check {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.spice-check input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+
+.spice-heading {
+  margin: 16px 0 8px;
 }

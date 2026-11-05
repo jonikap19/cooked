@@ -6,9 +6,9 @@ const filled = () => ({
   title: "Pfannkuchen",
   totalMinutes: "20",
   ingredients: [
-    { amount: "1,5", unit: "EL", name: "Zucker" },
-    { amount: "", unit: "", name: "Salz" },
-    { amount: "3", unit: "g", name: "  " },
+    { amount: "1,5", unit: "EL", name: "Zucker", spice: false },
+    { amount: "", unit: "", name: "Salz", spice: true },
+    { amount: "3", unit: "g", name: "  ", spice: false },
   ],
   steps: [
     { text: "Teig rühren", minutes: "5" },
@@ -26,8 +26,8 @@ describe("formToRecipe", () => {
         servings: 2,
         total_minutes: 20,
         ingredients: [
-          { amount: 1.5, unit: "EL", name: "Zucker" },
-          { amount: null, unit: "", name: "Salz" },
+          { amount: 1.5, unit: "EL", name: "Zucker", spice: false },
+          { amount: null, unit: "", name: "Salz", spice: true },
         ],
         steps: [
           { text: "Teig rühren", duration_minutes: 5 },
@@ -59,7 +59,7 @@ describe("formToRecipe", () => {
 
   it("rejects non-blank numbers it cannot read instead of dropping them", () => {
     const error = { error: "Bitte prüfe die Eingaben." };
-    expect(formToRecipe({ ...filled(), ingredients: [{ amount: "1/2", unit: "", name: "Mehl" }] })).toEqual(error);
+    expect(formToRecipe({ ...filled(), ingredients: [{ amount: "1/2", unit: "", name: "Mehl", spice: false }] })).toEqual(error);
     expect(formToRecipe({ ...filled(), steps: [{ text: "x", minutes: "ca. 30" }] })).toEqual(error);
     expect(formToRecipe({ ...filled(), totalMinutes: "1.2.3" })).toEqual(error);
   });

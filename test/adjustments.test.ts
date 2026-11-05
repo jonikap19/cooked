@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mergeRecipe } from "../shared/merge";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
 const app = testApp();
@@ -154,5 +155,31 @@ describe("adjustments api", () => {
     }
     const added = (await get(a, id)).adjustments.filter((x: any) => x.action === "add");
     expect(added.map((x: any) => x.new_values.text)).toEqual(["Eins", "Zwei", "Drei"]);
+  });
+
+  it("spice: stored on create, defaults to false, can be toggled alone and added without the field", async () => {
+    const a = user();
+    const res = await call(a, "/api/recipes", "POST", {
+      title: "Pasta", servings: 2, total_minutes: null,
+      ingredients: [
+        { name: "Salz", amount: null, unit: "", spice: true },
+        { name: "Nudeln", amount: 120, unit: "g" }, // old client: no spice
+      ],
+      steps: [{ text: "Kochen", duration_minutes: null }],
+      source_url: null, source_platform: null,
+    });
+    expect(res.status).toBe(201);
+    const id = ((await res.json()) as { id: string }).id;
+    const [salz, nudeln] = (await get(a, id)).ingredients;
+    expect([salz.spice, nudeln.spice]).toEqual([true, false]);
+
+    expect((await adj(id, modIng(nudeln.id, { spice: true }), a)).status).toBe(201);
+    const full = await get(a, id);
+    expect(full.adjustments[0].new_values).toEqual({ spice: true }); // modify did not default the other fields
+    expect(mergeRecipe(full).ingredients[1]).toMatchObject({ name: "Nudeln", spice: true, status: "modified" });
+
+    const added = await adj(id, { target_type: "ingredient", action: "add", target_id: null, new_values: { name: "Pfeffer", amount: null, unit: "" } }, a);
+    expect(added.status).toBe(201);
+    expect(((await added.json()) as any).new_values).toMatchObject({ name: "Pfeffer", spice: false });
   });
 });

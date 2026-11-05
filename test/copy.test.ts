@@ -108,7 +108,7 @@ describe("recipe copy", () => {
     expect(copy.note).toBe("");
     expect(copy.ingredient_notes).toEqual([]);
     expect(copy.ingredients.map(({ id, ...rest }) => rest)).toEqual(
-      live.ingredients.filter((i) => i.status !== "removed").map(({ name, amount, unit }, position) => ({ position, name, amount, unit })),
+      live.ingredients.filter((i) => i.status !== "removed").map(({ name, amount, unit, spice }, position) => ({ position, name, amount, unit, spice })),
     );
     expect(copy.steps.map(({ text }) => text)).toEqual(["Würfeln", "Anbraten", "Servieren"]);
     expect(copy.recipe).toMatchObject({ tags: ["Schnell", "Italienisch"], total_minutes: 25 });
@@ -143,5 +143,20 @@ describe("recipe copy", () => {
     const copyId = await insertSnapshot(testEnv(), await snapshotRecipe(env.DB, id, "with_comments"), { userId: a, groupId: null });
     expect((await get(a, copyId)).recipe.image_url).toBeNull();
     expect(await env.IMAGES.get(copyId)).toBeNull();
+  });
+
+  it("imports a snapshot from before Gewürze with spice false, and carries spice in both modes", async () => {
+    const a = user();
+    const { id } = await source(a);
+    const snapshot = await snapshotRecipe(env.DB, id, "with_comments");
+    const old = { ...snapshot, ingredients: snapshot.ingredients.map(({ spice, ...rest }) => rest) } as unknown as typeof snapshot;
+    const oldId = await insertSnapshot(testEnv(), old, { userId: a, groupId: null });
+    expect((await get(a, oldId)).ingredients.map((i) => i.spice)).toEqual([false, false]);
+
+    await adjust(a, id, { target_type: "ingredient", action: "modify", target_id: snapshot.ingredients[1].id, new_values: { spice: true } });
+    for (const mode of ["with_comments", "baked"] as const) {
+      const copyId = await insertSnapshot(testEnv(), await snapshotRecipe(env.DB, id, mode), { userId: a, groupId: null });
+      expect(mergeRecipe(await get(a, copyId)).ingredients.map((i) => i.spice)).toEqual([false, true, false]);
+    }
   });
 });

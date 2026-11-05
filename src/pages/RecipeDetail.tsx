@@ -180,7 +180,28 @@ export default function RecipeDetail() {
   const ingredientRows = showOriginal ? full.ingredients : merged.ingredients;
   const stepRows = showOriginal ? full.steps : merged.steps;
   const rows = tab === "ingredient" ? ingredientRows : stepRows;
+  const spiceRows = ingredientRows.filter((row) => row.spice);
   let stepNumber = 0;
+  const renderRow = (row: (typeof rows)[number]) => {
+    const item = row as Merged<Ingredient> | Merged<Step>;
+    // Raw originals have no status; ItemRow treats showOriginal as "original".
+    if (tab === "step" && !(showOriginal ? false : item.status === "removed")) stepNumber += 1;
+    return (
+      <ItemRow
+        key={item.id}
+        item={item}
+        note={tab === "ingredient" ? noteFor(item.id) : undefined}
+        kind={tab}
+        sharedBy={showOriginal ? undefined : sharedByFor(item.id, (item as Merged<Ingredient>).adjustmentIds ?? [])}
+        number={stepNumber}
+        scale={scale}
+        showOriginal={showOriginal}
+        onEdit={() => openSheet(tab, item)}
+        onRestore={() => void removeAdjustment(item.id, "remove")}
+        busy={busy}
+      />
+    );
+  };
   const openSheet = (kind: Sheet["kind"], item: Sheet["item"]) => {
     setError("");
     setSheet({ kind, item });
@@ -245,27 +266,14 @@ export default function RecipeDetail() {
         </div>
 
         <ul className="items" role="tabpanel" id={panelId} aria-labelledby={`${panelId}-${tab}`}>
-          {rows.map((row) => {
-            const item = row as Merged<Ingredient> | Merged<Step>;
-            // Raw originals have no status; ItemRow treats showOriginal as "original".
-            if (tab === "step" && !(showOriginal ? false : item.status === "removed")) stepNumber += 1;
-            return (
-              <ItemRow
-                key={item.id}
-                item={item}
-                note={tab === "ingredient" ? noteFor(item.id) : undefined}
-                kind={tab}
-                sharedBy={showOriginal ? undefined : sharedByFor(item.id, (item as Merged<Ingredient>).adjustmentIds ?? [])}
-                number={stepNumber}
-                scale={scale}
-                showOriginal={showOriginal}
-                onEdit={() => openSheet(tab, item)}
-                onRestore={() => void removeAdjustment(item.id, "remove")}
-                busy={busy}
-              />
-            );
-          })}
+          {(tab === "ingredient" ? ingredientRows.filter((row) => !row.spice) : rows).map(renderRow)}
         </ul>
+        {tab === "ingredient" && spiceRows.length > 0 && (
+          <>
+            <h3 className="spice-heading">Gewürze</h3>
+            <ul className="items">{spiceRows.map(renderRow)}</ul>
+          </>
+        )}
         {!showOriginal && (
           <button className="add-item" onClick={() => openSheet(tab, null)}>
             <Plus size={18} aria-hidden="true" /> {tab === "ingredient" ? "Zutat hinzufügen" : "Schritt hinzufügen"}

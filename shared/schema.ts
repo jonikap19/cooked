@@ -7,6 +7,7 @@ export const IngredientValues = z.object({
   name: z.string().trim().min(1).max(200),
   amount: z.number().min(0).max(100_000).nullable(),
   unit: z.string().max(30),
+  spice: z.boolean(),
 });
 export type IngredientValues = z.infer<typeof IngredientValues>;
 
@@ -31,7 +32,12 @@ export const HttpsUrl = z
   .max(2048)
   .refine((value) => URL.canParse(value) && new URL(value).protocol === "https:", "Nur https-Links");
 
+// Request-side ingredient: clients and share links from before Gewürze send no spice, which means false.
+// ParsedRecipe keeps the plain required field, so the AI JSON schema asks for it.
+export const IngredientInput = IngredientValues.extend({ spice: z.boolean().default(false) });
+
 export const NewRecipe = ParsedRecipe.extend({
+  ingredients: z.array(IngredientInput).max(100),
   source_url: HttpsUrl.nullable(),
   source_platform: Platform.nullable(),
   // Only a handle from POST /api/import-link; the server moves it to the recipe on save.
@@ -71,13 +77,15 @@ const targetId = z.string().min(1);
 const hasKeys = (values: object) => Object.keys(values).length > 0;
 
 // One variant per (target_type, action), so each combination validates its own value shape.
-const inputsFor = <T extends "ingredient" | "step", V extends z.ZodObject>(targetType: T, values: V) => [
+// `added` validates an add (may default fields), `values` is the plain shape whose partial a modify uses:
+// a default inside .partial() would fill spice = false into a modify that never mentioned it.
+const inputsFor = <T extends "ingredient" | "step", V extends z.ZodObject, A extends z.ZodObject>(targetType: T, values: V, added: A) => [
   z.object({
     target_type: z.literal(targetType),
     action: z.literal("add"),
     target_id: z.null(),
     insert_after: targetId.nullish(),
-    new_values: values,
+    new_values: added,
   }),
   z.object({
     target_type: z.literal(targetType),
@@ -90,8 +98,8 @@ const inputsFor = <T extends "ingredient" | "step", V extends z.ZodObject>(targe
 ];
 
 export const AdjustmentInput = z.union([
-  ...inputsFor("ingredient", IngredientValues),
-  ...inputsFor("step", StepValues),
+  ...inputsFor("ingredient", IngredientValues, IngredientInput),
+  ...inputsFor("step", StepValues, StepValues),
 ]);
 export type AdjustmentInput = z.infer<typeof AdjustmentInput>;
 

@@ -30,6 +30,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
   const [amount, setAmount] = useState(formatAmount(ingredient?.amount ?? null));
   const [unit, setUnit] = useState(ingredient?.unit ?? "");
   const [name, setName] = useState(ingredient?.name ?? "");
+  const [spice, setSpice] = useState(ingredient?.spice ?? false);
   const [text, setText] = useState(step?.text ?? "");
   const [duration, setDuration] = useState(step?.duration_minutes?.toString() ?? "");
   const [note, setNote] = useState(storedNote);
@@ -45,7 +46,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
     }
     const next: Values =
       kind === "ingredient"
-        ? { name: name.trim(), amount: amountFromField(amount, ingredient?.amount ?? null), unit: unit.trim() }
+        ? { name: name.trim(), amount: amountFromField(amount, ingredient?.amount ?? null), unit: unit.trim(), spice }
         : { text: text.trim(), duration_minutes: parseNumber(duration) };
     if (!item) return onSave(next, null);
     const changed = changedKeys(item as unknown as Values, next);
@@ -70,6 +71,9 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
             <UnitSelect id={ids[1]} value={unit} onChange={setUnit} />
             <label className="field-label" htmlFor={ids[2]}>Name</label>
             <input id={ids[2]} className="field" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="spice-check">
+              <input type="checkbox" checked={spice} onChange={(e) => setSpice(e.target.checked)} /> Gewürz
+            </label>
             {ingredient && (
               <>
                 <label className="field-label" htmlFor={ids[3]}>Notiz</label>

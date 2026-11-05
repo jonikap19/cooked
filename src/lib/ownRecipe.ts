@@ -8,11 +8,11 @@ export type OwnRecipeForm = {
   title: string;
   servings: string;
   totalMinutes: string;
-  ingredients: { amount: string; unit: string; name: string }[];
+  ingredients: { amount: string; unit: string; name: string; spice: boolean }[];
   steps: { text: string; minutes: string }[];
 };
 
-export const blankIngredient = () => ({ amount: "", unit: "", name: "" });
+export const blankIngredient = () => ({ amount: "", unit: "", name: "", spice: false });
 export const blankStep = () => ({ text: "", minutes: "" });
 
 export function blankForm(): OwnRecipeForm {
@@ -37,7 +37,7 @@ export function formToRecipe(form: OwnRecipeForm): { recipe: NewRecipe } | { err
     total_minutes: parseNumber(form.totalMinutes),
     ingredients: form.ingredients
       .filter((ingredient) => ingredient.name.trim() !== "")
-      .map((ingredient) => ({ name: ingredient.name, amount: parseNumber(ingredient.amount), unit: ingredient.unit.trim() })),
+      .map((ingredient) => ({ name: ingredient.name, amount: parseNumber(ingredient.amount), unit: ingredient.unit.trim(), spice: ingredient.spice })),
     steps: steps.map((step) => ({ text: step.text, duration_minutes: parseNumber(step.minutes) })),
     source_url: null,
     source_platform: null,

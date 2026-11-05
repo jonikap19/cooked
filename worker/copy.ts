@@ -33,7 +33,7 @@ export async function snapshotRecipe(db: D1Database, recipeId: string, mode: "wi
     ...base,
     ingredients: merged.ingredients
       .filter((i) => i.status !== "removed")
-      .map(({ id, name, amount, unit }, position) => ({ id, position, name, amount, unit })),
+      .map(({ id, name, amount, unit, spice }, position) => ({ id, position, name, amount, unit, spice })),
     steps: merged.steps
       .filter((s) => s.status !== "removed")
       .map(({ id, text, duration_minutes }, position) => ({ id, position, text, duration_minutes })),
@@ -63,8 +63,9 @@ export async function insertSnapshot(env: Env, snapshot: Snapshot, owner: { user
         "INSERT INTO recipes (id, user_id, group_id, title, source_url, source_platform, image_url, servings, total_minutes, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ).bind(id, owner.userId, owner.groupId, r.title, r.source_url, r.source_platform, image ? `${IMAGE_PREFIX}${id}` : null, r.servings, r.total_minutes, JSON.stringify(r.tags)),
       ...snapshot.ingredients.map((i) =>
-        DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)").bind(
-          remap(i.id), id, i.position, i.name, i.amount, i.unit,
+        DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit, spice) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(
+          // Payloads from before Gewürze have no spice.
+          remap(i.id), id, i.position, i.name, i.amount, i.unit, i.spice ? 1 : 0,
         ),
       ),
       ...snapshot.steps.map((s) =>
