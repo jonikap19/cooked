@@ -13,9 +13,7 @@ export default function RecipeCard({ recipe, warnings = [] }: { recipe: RecipeSu
   return (
     <Link to={`/rezept/${recipe.id}`} className="card">
       <div className="thumb" style={{ background: placeholderColor(recipe.id) }}>
-        <RecipeImage src={recipe.image_url} lazy>
-          Rezeptbild
-        </RecipeImage>
+        <RecipeImage src={recipe.image_url} lazy />
       </div>
       <div className="card-body">
         <h2>{recipe.title}</h2>

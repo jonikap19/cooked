@@ -73,9 +73,7 @@ export default function SharedRecipe() {
   return (
     <main className="detail">
       <div className="hero" style={{ background: placeholderColor(recipe.title) }}>
-        <RecipeImage src={null}>
-          <span className="hero-label">Rezeptbild</span>
-        </RecipeImage>
+        <RecipeImage src={null} />
         <Link to="/" className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
       </div>
 

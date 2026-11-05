@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { ChefHat } from "lucide-react";
+import { useState } from "react";
 
-// Covers its (relatively positioned) parent; a failed load falls back to the placeholder content.
-export default function RecipeImage({ src, lazy = false, children }: { src: string | null; lazy?: boolean; children: ReactNode }) {
+// Covers its (relatively positioned) parent; no image or a failed load shows a chef-hat placeholder.
+export default function RecipeImage({ src, lazy = false }: { src: string | null; lazy?: boolean }) {
   const [failed, setFailed] = useState(false);
-  if (!src || failed) return children;
+  if (!src || failed) return <ChefHat className="placeholder-icon" aria-hidden="true" />;
   return <img className="cover" src={src} alt="" loading={lazy ? "lazy" : undefined} onError={() => setFailed(true)} />;
 }
