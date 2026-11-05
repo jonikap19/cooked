@@ -1,4 +1,4 @@
-import { ChevronLeft, ExternalLink, Minus, Play, Plus, Share2 } from "lucide-react";
+import { Check, ChevronLeft, ExternalLink, Minus, Play, Plus, Share2, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api, SessionExpiredError, type GroupSummary } from "../api";
@@ -223,9 +223,7 @@ export default function RecipeDetail() {
   return (
     <main className="detail">
       <div className="hero" style={{ background: placeholderColor(recipe.id) }}>
-        <RecipeImage src={recipe.image_url}>
-          <span className="hero-label">Rezeptbild</span>
-        </RecipeImage>
+        <RecipeImage src={recipe.image_url} />
         <Link to={backTo} className="round-button" aria-label="Zurück"><ChevronLeft aria-hidden="true" /></Link>
         <button className="source-pill share-pill" onClick={() => setSharing(true)}>
           <Share2 size={16} aria-hidden="true" /> Teilen
@@ -246,6 +244,12 @@ export default function RecipeDetail() {
             {recipe.tags.length ? recipe.tags.join(", ") : "Tags hinzufügen"}
           </button>
         </p>
+
+        {warnings.length > 0 && (
+          <div className="allergy-box" role="note">
+            {warnings.map((warning, index) => <p key={index}>{warning}</p>)}
+          </div>
+        )}
 
         {merged.adjustmentCount > 0 && (
           <div className="adj-banner">
@@ -269,15 +273,10 @@ export default function RecipeDetail() {
           </div>
         </div>
 
-        <button className="add-item" disabled={busy} onClick={togglePlanned}>
+        <button className={`plan-button${planned ? " is-planned" : ""}`} aria-pressed={planned} disabled={busy} onClick={togglePlanned}>
+          {planned ? <Check size={18} aria-hidden="true" /> : <ShoppingCart size={18} aria-hidden="true" />}
           {planned ? "Auf der Einkaufsliste" : "Auf die Einkaufsliste"}
         </button>
-
-        {warnings.length > 0 && (
-          <div className="allergy-box" role="note">
-            {warnings.map((warning, index) => <p key={index}>{warning}</p>)}
-          </div>
-        )}
 
         <div className="tabs" role="tablist">
           <button role="tab" id={`${panelId}-ingredient`} aria-controls={panelId} aria-selected={tab === "ingredient"} onClick={() => setTab("ingredient")}>Zutaten · {ingredientRows.length}</button>
@@ -312,9 +311,6 @@ export default function RecipeDetail() {
           // Not through mutate: its busy guard would drop a blur that lands during another save. A note PUT is idempotent, so overlap is harmless.
           onBlur={() => note.trim() !== full.note && void api.saveNote(id, note.trim()).then(load, showError)}
         />
-        {!recipe.group_id && groups.length > 0 && (
-          <button className="add-item" onClick={() => setPicking(true)}>In Gruppe teilen</button>
-        )}
         <button
           className="text-button muted-button"
           disabled={busy}
@@ -359,7 +355,13 @@ export default function RecipeDetail() {
         />
       )}
       {picking && <GroupPicker groups={groups} recipeId={id} onClose={() => setPicking(false)} />}
-      {sharing && <ShareSheet recipeId={id} onClose={() => setSharing(false)} />}
+      {sharing && (
+        <ShareSheet
+          recipeId={id}
+          onShareToGroup={!recipe.group_id && groups.length > 0 ? () => { setSharing(false); setPicking(true); } : undefined}
+          onClose={() => setSharing(false)}
+        />
+      )}
       {tagsOpen && (
         <TagDialog
           tags={recipe.tags}

@@ -3,10 +3,11 @@ import { ApiError, api, messageOf } from "../api";
 
 interface Props {
   recipeId: string;
+  onShareToGroup?(): void; // offered for personal recipes when the user is in a group
   onClose(): void;
 }
 
-export default function ShareSheet({ recipeId, onClose }: Props) {
+export default function ShareSheet({ recipeId, onShareToGroup, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const linkField = useRef<HTMLInputElement>(null);
   const [link, setLink] = useState("");
@@ -46,6 +47,7 @@ export default function ShareSheet({ recipeId, onClose }: Props) {
             <p className="meta">Wie soll das Rezept geteilt werden?</p>
             <button className="primary-button inline" disabled={busy} onClick={() => void create("baked")}>ohne Kommentare</button>
             <button className="primary-button inline" disabled={busy} onClick={() => void create("with_comments")}>mit Kommentaren</button>
+            {onShareToGroup && <button className="primary-button inline" disabled={busy} onClick={onShareToGroup}>In eine Gruppe</button>}
           </>
         ) : (
           <>
@@ -58,6 +60,7 @@ export default function ShareSheet({ recipeId, onClose }: Props) {
           </>
         )}
         {error && <p className="error" role="alert">{error}</p>}
+        <button type="button" className="text-button" onClick={onClose}>Schließen</button>
       </div>
     </dialog>
   );
