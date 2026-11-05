@@ -10,6 +10,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — UI polish: the allergy box sits right under the title meta; "In Gruppe teilen" moved into the Teilen sheet ("In eine Gruppe"); the shopping-list toggle is a solid `.plan-button` (filled + check when planned); every sheet has a visible Abbrechen/Schließen/Fertig button. Why: dashed `.add-item` is for adding rows only, and iOS has no Esc to close a sheet.
 - 2026-11-05 — Comments (ingredient and step notes): one per row; anyone who can open the recipe may edit it and becomes its author. Group recipes label it "Kommentar · <initials>" ("Du" for yourself); personal recipes and share previews show just "Kommentar". Why: owner wants one shared comment per step with a visible author.
 - 2026-11-05 — `CONVERTIBLE` also maps `stk`, `stk.`, `st.`, `stück` to "Stück" (factor 1). Why: recipes imported before the Stück unit list say "Stk"; without the alias their shopping-list/Vorrat keys would not combine with new ones. A spelling alias, not a conversion.
 - 2026-11-05 — Allergies: only `GET /api/recipes/:id` adds `allergies`; the loaders return `RecipeData` without them, so snapshots/share links can never carry them. The list holds only users with at least one allergen. Why: allergies are personal data, scoped per viewer.
@@ -32,7 +33,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 - 2026-11-03 — Spec deviation: `source_platform` is picked by the user (chips), preselected via `detectPlatform`. Why: matches design.
 - 2026-11-03 — Spec deviation: `user_id` = lower-cased email from the Access JWT, no users table. Why: simplest for a few friends.
 - 2026-11-03 — Spec deviation: no service worker; manifest alone makes it installable, offline is out of scope. Why: YAGNI.
-- 2026-11-03 — Spec deviation: `image_url` is a `/api/images/<id>` handle (R2) set by link import, null otherwise; null shows the "Rezeptbild" placeholder. Why: link import brings an image, text import has none.
+- 2026-11-03 — Spec deviation: `image_url` is a `/api/images/<id>` handle (R2) set by link import, null otherwise; null shows a chef-hat placeholder (hero shrinks to 160 px via `:has(img)`). Why: link import brings an image, text import has none.
 - 2026-11-03 — Spec deviation: remove/reset of a single item lives in the edit sheet. Why: designs show only the pencil per row.
 - 2026-11-03 — Spec deviation: added "delete recipe" at the bottom of the detail screen. Why: needed to clean up bad imports.
 

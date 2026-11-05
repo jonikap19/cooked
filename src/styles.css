@@ -175,14 +175,18 @@ a {
   position: relative;
   overflow: hidden;
   flex: none;
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  place-items: center;
   width: 96px;
   height: 96px;
-  padding: 8px;
   border-radius: 12px;
   color: var(--muted);
-  font-size: 0.75rem;
+}
+
+.placeholder-icon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.6;
 }
 
 .card-body {
@@ -500,15 +504,17 @@ textarea.field[readonly] {
 
 .hero {
   position: relative;
+  display: grid;
+  place-items: center;
   height: 280px;
+  /* The detail sheet overlaps the bottom 24px; keep the placeholder centred in what stays visible. */
+  padding-bottom: 24px;
+  color: var(--muted);
 }
 
-.hero-label {
-  position: absolute;
-  left: 16px;
-  bottom: 40px;
-  color: var(--muted);
-  font-size: 0.75rem;
+/* Without a photo a full-height colour block is wasted space. */
+.hero:not(:has(img)) {
+  height: 160px;
 }
 
 .round-button,
@@ -788,6 +794,27 @@ textarea.field[readonly] {
   color: var(--primary);
   font-weight: 700;
   cursor: pointer;
+}
+
+.plan-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 16px;
+  border: 1px solid var(--primary);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.plan-button.is-planned {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft);
 }
 
 .note-heading {

@@ -47,6 +47,7 @@ function CorrectionSheet({ line, names, onSave, onClose, error, busy }: Correcti
         <input id={inputId} className="field" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit" className="primary-button inline" disabled={busy || !name.trim()}>Zuordnen</button>
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
       </form>
     </dialog>
   );

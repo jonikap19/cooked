@@ -103,6 +103,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
         {item?.status === "added" && (
           <button type="button" className="text-button adj" disabled={busy} onClick={onDelete}>Löschen</button>
         )}
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
       </form>
     </dialog>
   );
