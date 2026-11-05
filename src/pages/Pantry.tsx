@@ -48,16 +48,39 @@ export default function Pantry() {
       if (!(err instanceof ApiError && err.status === 404)) throw err;
     });
 
-  const save = (name: string, amount: number | null, unit: string) => {
+  const save = (name: string, amount: number | null, unit: string, spice: boolean) => {
     const current = sheet?.item;
     void mutate(
       () =>
         current
-          ? api.editPantry({ canonical_name: current.canonical_name, unit: current.unit }, { canonical_name: name, amount, unit })
-          : api.addPantry(name, amount, unit),
+          ? api.editPantry({ canonical_name: current.canonical_name, unit: current.unit }, { canonical_name: name, amount, unit, spice })
+          : api.addPantry(name, amount, unit, spice),
       true,
     );
   };
+
+  const shown = (items ?? []).filter((item) => item.canonical_name.toLowerCase().includes(query.trim().toLowerCase()));
+
+  const renderRow = (item: PantryItem) => (
+    <li key={`${item.canonical_name}|${item.unit}`} className="pantry-row">
+      <button className="pantry-edit" onClick={() => { setError(""); setSheet({ item }); }}>
+        {item.canonical_name}
+        <span className="meta">{amountLabel(item)}</span>
+      </button>
+      <label className="pantry-toggle">
+        <input
+          type="checkbox"
+          aria-label={`Immer da: ${item.canonical_name}`}
+          checked={item.always_at_home}
+          disabled={busy}
+          onChange={(event) =>
+            void mutate(() => api.editPantry({ canonical_name: item.canonical_name, unit: item.unit }, { always_at_home: event.target.checked }), false)
+          }
+        />
+        Immer da
+      </label>
+    </li>
+  );
 
   return (
     <main className="page with-tabs">
@@ -78,28 +101,13 @@ export default function Pantry() {
           <input type="search" placeholder="Vorrat durchsuchen" aria-label="Vorrat durchsuchen" value={query} onChange={(event) => setQuery(event.target.value)} />
         </label>
       )}
-      <ul className="list" style={{ listStyle: "none", padding: 0 }}>
-        {items?.filter((item) => item.canonical_name.toLowerCase().includes(query.trim().toLowerCase())).map((item) => (
-          <li key={`${item.canonical_name}|${item.unit}`} className="pantry-row">
-            <button className="pantry-edit" onClick={() => { setError(""); setSheet({ item }); }}>
-              {item.canonical_name}
-              <span className="meta">{amountLabel(item)}</span>
-            </button>
-            <label className="pantry-toggle">
-              <input
-                type="checkbox"
-                aria-label={`Immer da: ${item.canonical_name}`}
-                checked={item.always_at_home}
-                disabled={busy}
-                onChange={(event) =>
-                  void mutate(() => api.editPantry({ canonical_name: item.canonical_name, unit: item.unit }, { always_at_home: event.target.checked }), false)
-                }
-              />
-              Immer da
-            </label>
-          </li>
-        ))}
-      </ul>
+      <ul className="list" style={{ listStyle: "none", padding: 0 }}>{shown.filter((item) => !item.spice).map(renderRow)}</ul>
+      {shown.some((item) => item.spice) && (
+        <>
+          <h3 className="spice-heading">Gewürze</h3>
+          <ul className="list" style={{ listStyle: "none", padding: 0 }}>{shown.filter((item) => item.spice).map(renderRow)}</ul>
+        </>
+      )}
 
       <div className="sticky-bottom above-tabs">
         <button className="primary-button" onClick={() => { setError(""); setSheet({ item: null }); }}>
@@ -112,6 +120,7 @@ export default function Pantry() {
         <PantrySheet
           item={sheet.item}
           onSave={save}
+          spiceOption
           onDelete={() => sheet.item && void mutate(() => deleteItem(sheet.item!), true)}
           onClose={() => setSheet(null)}
           error={error}

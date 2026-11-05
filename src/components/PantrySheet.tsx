@@ -10,19 +10,21 @@ export const formatAmount = (amount: number) => amount.toLocaleString("de-DE", {
 
 interface SheetProps {
   item: PantryItem | null; // null = new item
-  onSave(name: string, amount: number | null, unit: string): void;
+  onSave(name: string, amount: number | null, unit: string, spice: boolean): void;
+  spiceOption?: boolean; // only the Vorrat sets the flag
   onDelete?(): void; // only offered for an existing item
   onClose(): void;
   error: string;
   busy: boolean;
 }
 
-export default function PantrySheet({ item, onSave, onDelete, onClose, error: serverError, busy }: SheetProps) {
+export default function PantrySheet({ item, onSave, spiceOption = false, onDelete, onClose, error: serverError, busy }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const ids = [useId(), useId(), useId(), useId()];
   const [amount, setAmount] = useState(item?.amount == null ? "" : String(item.amount));
   const [unit, setUnit] = useState(item?.unit ?? "");
   const [name, setName] = useState(item?.canonical_name ?? "");
+  const [spice, setSpice] = useState(item?.spice ?? false);
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<{ name: string; unit: string }[]>([]);
   // The suggested unit only fills in until the user picks one themselves.
@@ -50,7 +52,7 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
     if (!name.trim()) return setError("Bitte einen Namen eingeben.");
     const parsed = pantryAmount(amount, item?.always_at_home);
     if ("error" in parsed) return setError(parsed.error);
-    onSave(name.trim(), parsed.amount, unit.trim());
+    onSave(name.trim(), parsed.amount, unit.trim(), spiceOption && spice);
   };
 
   return (
@@ -69,6 +71,11 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
           <option value="">etwas</option>
           {options.map((n) => <option key={n} value={String(n)}>{formatAmount(n)}</option>)}
         </select>
+        {spiceOption && (
+          <label className="spice-check">
+            <input type="checkbox" checked={spice} onChange={(e) => setSpice(e.target.checked)} /> Gewürz
+          </label>
+        )}
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}
         <button type="submit" className="primary-button inline" disabled={busy}>Speichern</button>
         {item && onDelete && (

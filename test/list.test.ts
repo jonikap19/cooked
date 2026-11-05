@@ -87,7 +87,7 @@ describe("shopping list api", () => {
     const res = await checkout(u, [{ key: line.key, canonical_name: line.canonical_name, unit: line.unit, amount: 30 }]);
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 30, always_at_home: false }]);
+    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 30, always_at_home: false, spice: false }]);
     expect(body.lines).toEqual([expect.objectContaining({ key: line.key, amount: 30 })]);
     expect(body.ticked).toEqual([]);
   });
@@ -119,8 +119,8 @@ describe("shopping list api", () => {
     ).json()) as any;
     expect(body.lines).toEqual([]);
     expect(await pantryOf(u)).toEqual([
-      { canonical_name: "Milch", unit: "ml", amount: null, always_at_home: false },
-      { canonical_name: "Salz", unit: "g", amount: 5, always_at_home: false },
+      { canonical_name: "Milch", unit: "ml", amount: null, always_at_home: false, spice: false },
+      { canonical_name: "Salz", unit: "g", amount: 5, always_at_home: false, spice: false },
     ]);
   });
 
@@ -189,7 +189,7 @@ describe("shopping list api", () => {
     const u = user();
     await call(u, "POST", "/api/pantry", { name: "Butter", amount: 100, unit: "g" });
     await checkout(u, [{ key: "butter|g", canonical_name: "butter", unit: "g", amount: 50 }]);
-    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 150, always_at_home: false }]);
+    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 150, always_at_home: false, spice: false }]);
   });
 
   it("rejects out-of-range checkout amounts and bad bodies", async () => {
@@ -344,16 +344,16 @@ describe("cooked api", () => {
       { canonical_name: "butter", unit: "g", amount: 50 },
       { canonical_name: " BUTTER ", unit: "g", amount: 30 },
     ]);
-    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 120, always_at_home: false }]);
+    expect(await pantryOf(u)).toEqual([{ canonical_name: "Butter", unit: "g", amount: 120, always_at_home: false, spice: false }]);
   });
 
   it("never subtracts from an Immer da row", async () => {
     const u = user();
     const r = await seed(u, "Kuchen", 2, [["Salz", 5, "g"]]);
     await stock(u, "Salz", 100, "g");
-    await call(u, "PATCH", "/api/pantry", { canonical_name: "Salz", unit: "g", set: { always_at_home: true } });
+    await call(u, "PATCH", "/api/pantry", { canonical_name: "Salz", unit: "g", set: { always_at_home: true, spice: false } });
     await cooked(u, r, [{ canonical_name: "Salz", unit: "g", amount: 5 }]);
-    expect(await pantryOf(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 100, always_at_home: true }]);
+    expect(await pantryOf(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 100, always_at_home: true, spice: false }]);
   });
 
   it("rejects negative or too large amounts and too many items", async () => {

@@ -16,6 +16,7 @@ async function call(email: string, method: string, body?: unknown) {
 }
 const list = async (email: string) => (await (await call(email, "GET")).json()) as any[];
 const add = (email: string, name: string, amount: number | null, unit: string) => call(email, "POST", { name, amount, unit });
+const addSpice = (email: string, name: string) => call(email, "POST", { name, amount: 5, unit: "g", spice: true });
 const patch = (email: string, canonical_name: string, unit: string, set: object) =>
   call(email, "PATCH", { canonical_name, unit, set });
 const lowerTotal = async (email: string) =>
@@ -25,7 +26,7 @@ describe("pantry api", () => {
   it("stores 1 kg as 1000 g and adds into the same row", async () => {
     const u = user();
     const res = await add(u, "Mehl", 1, "kg");
-    expect(await res.json()).toEqual({ canonical_name: "Mehl", unit: "g", amount: 1000, always_at_home: false });
+    expect(await res.json()).toEqual({ canonical_name: "Mehl", unit: "g", amount: 1000, always_at_home: false, spice: false });
     expect(await (await add(u, "Mehl", 500, "g")).json()).toMatchObject({ amount: 1500 });
     expect(await list(u)).toHaveLength(1);
   });
@@ -34,7 +35,7 @@ describe("pantry api", () => {
     const u = user();
     await add(u, "Butter", 100, "g");
     const res = await add(u, "butter", 50, "g");
-    expect(await res.json()).toEqual({ canonical_name: "Butter", unit: "g", amount: 150, always_at_home: false });
+    expect(await res.json()).toEqual({ canonical_name: "Butter", unit: "g", amount: 150, always_at_home: false, spice: false });
     expect(await list(u)).toHaveLength(1);
   });
 
@@ -65,10 +66,32 @@ describe("pantry api", () => {
     const u = user();
     await add(u, "Mehl", 100, "g");
     await add(u, "Weizenmehl", 50, "g");
-    await patch(u, "Weizenmehl", "g", { always_at_home: true });
+    await patch(u, "Weizenmehl", "g", { always_at_home: true, spice: false });
     const res = await patch(u, "Weizenmehl", "g", { canonical_name: "  Mehl " });
-    expect(await res.json()).toEqual({ canonical_name: "Mehl", unit: "g", amount: 150, always_at_home: true });
+    expect(await res.json()).toEqual({ canonical_name: "Mehl", unit: "g", amount: 150, always_at_home: true, spice: false });
     expect(await list(u)).toHaveLength(1);
+  });
+
+  it("stores the spice flag on post, defaulting to false", async () => {
+    const u = user();
+    expect(await (await addSpice(u, "Paprika")).json()).toMatchObject({ spice: true });
+    expect(await (await add(u, "Mehl", 1, "g")).json()).toMatchObject({ spice: false });
+    expect((await list(u)).map((i) => [i.canonical_name, i.spice])).toEqual([["Mehl", false], ["Paprika", true]]);
+  });
+
+  it("flips the spice flag by patch and changes nothing else", async () => {
+    const u = user();
+    await add(u, "Paprika", 5, "g");
+    expect(await (await patch(u, "Paprika", "g", { spice: true })).json()).toEqual({ canonical_name: "Paprika", unit: "g", amount: 5, always_at_home: false, spice: true });
+    expect(await (await patch(u, "Paprika", "g", { spice: false })).json()).toEqual({ canonical_name: "Paprika", unit: "g", amount: 5, always_at_home: false, spice: false });
+  });
+
+  it("OR-s the spice flag when a rename merges onto an existing row", async () => {
+    const u = user();
+    await add(u, "Mehl", 100, "g");
+    await addSpice(u, "Weizenmehl");
+    const res = await patch(u, "Weizenmehl", "g", { canonical_name: "Mehl" });
+    expect(await res.json()).toMatchObject({ canonical_name: "Mehl", amount: 105, spice: true });
   });
 
   it("merges with null rules", async () => {
@@ -91,8 +114,8 @@ describe("pantry api", () => {
     expect((await patch(u, "Mehl", "g", { amount: 0 })).status).toBe(204);
     expect(await list(u)).toEqual([]);
     await add(u, "Salz", 10, "g");
-    await patch(u, "Salz", "g", { always_at_home: true });
-    expect(await (await patch(u, "Salz", "g", { amount: 0 })).json()).toMatchObject({ amount: 0, always_at_home: true });
+    await patch(u, "Salz", "g", { always_at_home: true, spice: false });
+    expect(await (await patch(u, "Salz", "g", { amount: 0 })).json()).toMatchObject({ amount: 0, always_at_home: true, spice: false });
   });
 
   it("returns 404 for unknown or foreign rows", async () => {
@@ -111,12 +134,21 @@ describe("applyToPantry", () => {
     const u = user();
     await add(u, "Mehl", 100, "g");
     await add(u, "Salz", 100, "g");
-    await patch(u, "Salz", "g", { always_at_home: true });
+    await patch(u, "Salz", "g", { always_at_home: true, spice: false });
     await applyToPantry(env.DB, u, [
       { canonical_name: "Mehl", unit: "g", delta: 500, op: "subtract" },
       { canonical_name: "Salz", unit: "g", delta: 500, op: "subtract" },
     ]);
-    expect(await list(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 100, always_at_home: true }]);
+    expect(await list(u)).toEqual([{ canonical_name: "Salz", unit: "g", amount: 100, always_at_home: true, spice: false }]);
+  });
+
+  it("keeps the spice flag when adding to or subtracting from a spice row", async () => {
+    const u = user();
+    await addSpice(u, "Paprika");
+    await applyToPantry(env.DB, u, [{ canonical_name: "Paprika", unit: "g", delta: 3, op: "add" }]);
+    expect(await list(u)).toMatchObject([{ amount: 8, spice: true }]);
+    await applyToPantry(env.DB, u, [{ canonical_name: "Paprika", unit: "g", delta: 2, op: "subtract" }]);
+    expect(await list(u)).toMatchObject([{ amount: 6, spice: true }]);
   });
 
   it("never creates a row on subtract, and adds create or sum", async () => {

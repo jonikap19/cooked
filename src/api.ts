@@ -80,8 +80,8 @@ export const api = {
     request<void>(`/api/recipes/${id}/ingredient-notes/${targetId}`, send("PUT", { text })),
   pantrySuggestions: () => request<{ name: string; unit: string }[]>("/api/pantry/suggestions"),
   listPantry: () => request<PantryItem[]>("/api/pantry"),
-  addPantry: (name: string, amount: number | null, unit: string) =>
-    request<PantryItem>("/api/pantry", send("POST", { name, amount, unit })),
+  addPantry: (name: string, amount: number | null, unit: string, spice = false) =>
+    request<PantryItem>("/api/pantry", send("POST", { name, amount, unit, spice })),
   // Resolves to undefined (204) when the edit deleted the row.
   editPantry: (key: Pick<PantryItem, "canonical_name" | "unit">, set: Partial<PantryItem>) =>
     request<PantryItem | undefined>("/api/pantry", send("PATCH", { ...key, set })),
