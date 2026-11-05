@@ -10,6 +10,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — Comments (ingredient and step notes): one per row; anyone who can open the recipe may edit it and becomes its author. Group recipes label it "Kommentar · <initials>" ("Du" for yourself); personal recipes and share previews show just "Kommentar". Why: owner wants one shared comment per step with a visible author.
 - 2026-11-05 — `CONVERTIBLE` also maps `stk`, `stk.`, `st.`, `stück` to "Stück" (factor 1). Why: recipes imported before the Stück unit list say "Stk"; without the alias their shopping-list/Vorrat keys would not combine with new ones. A spelling alias, not a conversion.
 - 2026-11-05 — Allergies: only `GET /api/recipes/:id` adds `allergies`; the loaders return `RecipeData` without them, so snapshots/share links can never carry them. The list holds only users with at least one allergen. Why: allergies are personal data, scoped per viewer.
 - 2026-11-05 — Allergen presets also list "nüsse"/"erdnüsse" (plural umlaut forms "nuss" misses); a typed allergen equal to a preset name in any case uses the preset's keywords. Why: "Haselnüsse" must hit Nüsse.

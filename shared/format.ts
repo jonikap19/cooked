@@ -40,6 +40,12 @@ export function initials(email: string): string {
   return letters.toUpperCase();
 }
 
+/** Heading above a comment: who wrote it, on group recipes only (a personal recipe's comments are all yours). */
+export function commentLabel(author: string | undefined, me: string, inGroup: boolean): string {
+  if (!inGroup || !author) return "Kommentar";
+  return author === me ? "Kommentar · Du" : `Kommentar · ${initials(author)}`;
+}
+
 const PLACEHOLDER_COLORS = ["#E5D5BA", "#EBC8A8", "#D2DBC6", "#EBDCCB"];
 
 export function placeholderColor(id: string): string {

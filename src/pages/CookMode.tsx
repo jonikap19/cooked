@@ -7,6 +7,7 @@ import { playAlarm, unlockAudio } from "../lib/alarm";
 import { durationDiffLabel, formatClock, pauseTimer, remainingSeconds, timerChips } from "../lib/timer";
 import { useWakeLock } from "../lib/wakeLock";
 import { detectDuration } from "../../shared/duration";
+import { commentLabel } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { RecipeFull, Step } from "../../shared/schema";
 
@@ -80,6 +81,9 @@ export default function CookMode() {
   const held = useWakeLock(awake);
   const [timers, setTimers] = useState<Record<string, TimerState>>({});
   const [now, setNow] = useState(() => Date.now());
+  const [userId, setUserId] = useState("");
+  // Only labels your own comments "Du"; without it they show initials.
+  useEffect(() => void api.me().then((me) => setUserId(me.userId), () => {}), []);
   const buzzed = useRef(new Set<string>());
   const anyRunning = Object.values(timers).some((t) => t.endAt !== null && remainingSeconds(t.endAt, now) > 0);
 
@@ -145,7 +149,7 @@ export default function CookMode() {
   const diff = step && durationDiffLabel(step.original?.duration_minutes ?? null, step.duration_minutes);
   const chips = timerChips(steps.map((s) => s.id), timers, index, now);
   const minutes = step ? step.duration_minutes ?? detectDuration(step.text) : null;
-  const stepNote = step && full.ingredient_notes.find((n) => n.target_id === step.id)?.body;
+  const stepNote = step && full.ingredient_notes.find((n) => n.target_id === step.id);
   const hint = step?.status === "added" ? "Von dir hinzugefügt"
     : step?.status === "modified" ? `Deine Anpassung: ${diff ?? "Text"}` : null;
 
@@ -166,7 +170,12 @@ export default function CookMode() {
           </div>
           {hint && <span className="cook-hint">{hint}</span>}
           <p className="cook-text">{step.text}</p>
-          {stepNote && <p className="cook-note">{stepNote}</p>}
+          {stepNote && (
+            <div className="cook-note">
+              <span className="note-label">{commentLabel(stepNote.author, userId, !!full.recipe.group_id)}</span>
+              <p>{stepNote.body}</p>
+            </div>
+          )}
           {minutes !== null && (
             <StepTimer
               step={step}
