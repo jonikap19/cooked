@@ -229,6 +229,21 @@ describe("matchName", () => {
     const stored = await env.DB.prepare("SELECT COUNT(*) AS n FROM ingredient_matches WHERE user_id = ?").bind(u).first<{ n: number }>();
     expect(stored!.n).toBe(0);
   });
+
+  it("takes a name already in my Vorrat or earlier matches without an AI call, but never another user's", async () => {
+    const [u, other] = [user(), user()];
+    await env.DB.prepare("INSERT INTO pantry_items (user_id, canonical_name, unit, amount) VALUES (?, 'Haferflocken', 'g', 500)").bind(u).run();
+    const { id, ids } = await seed(u, [["Bio-Tomaten", ""]]);
+    await env.DB.prepare(
+      "INSERT INTO ingredient_matches (recipe_id, target_id, user_id, source_name, canonical_name, unit) VALUES (?, ?, ?, 'Bio-Tomaten', 'Tomate', 'Stück')",
+    ).bind(id, ids[0], u).run();
+    const { ai, calls } = fakeAi();
+    expect(await matchName(envWith(ai), u, " haferflocken", "kg")).toEqual({ canonical_name: "Haferflocken", unit: "g" });
+    expect(await matchName(envWith(ai), u, "Tomate", "")).toEqual({ canonical_name: "Tomate", unit: "Stück" });
+    expect(calls).toHaveLength(0);
+    expect(await matchName(envWith(ai), other, "Haferflocken", "g")).toEqual({ canonical_name: "Std Haferflocken", unit: "g" });
+    expect(calls).toHaveLength(1);
+  });
 });
 
 describe("PUT /api/aliases", () => {
