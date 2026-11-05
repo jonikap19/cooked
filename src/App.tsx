@@ -11,6 +11,7 @@ import Pantry from "./pages/Pantry";
 import ShoppingList from "./pages/ShoppingList";
 import SharedRecipe from "./pages/SharedRecipe";
 import RecipeDetail from "./pages/RecipeDetail";
+import Allergies from "./pages/Allergies";
 
 function SessionExpired() {
   const expired = useSyncExternalStore(sessionStore.subscribe, sessionStore.isExpired);
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/einkaufsliste" element={<ShoppingList />} />
         <Route path="/vorrat" element={<Pantry />} />
+        <Route path="/allergien" element={<Allergies />} />
         <Route path="/gruppen" element={<Groups />} />
         <Route path="/gruppen/:id" element={<GroupRoute />} />
         <Route path="/neu" element={<AddRecipe />} />

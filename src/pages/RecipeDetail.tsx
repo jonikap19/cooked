@@ -9,6 +9,7 @@ import GroupPicker from "../components/GroupPicker";
 import ShareSheet from "../components/ShareSheet";
 import TagDialog from "../components/TagDialog";
 import RecipeImage from "../components/RecipeImage";
+import { allergenHits, allergyWarnings } from "../../shared/allergens";
 import { countLabel, formatShortDate, initials, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { AdjustmentInput, Ingredient, IngredientValues, RecipeFull, Step, StepValues } from "../../shared/schema";
@@ -36,6 +37,7 @@ export default function RecipeDetail() {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [planned, setPlanned] = useState(false);
+  const [userId, setUserId] = useState("");
   const noteSeeded = useRef(false);
 
   const load = useCallback(async () => {
@@ -63,6 +65,8 @@ export default function RecipeDetail() {
   // Only needed for "In Gruppe teilen"; a failed lookup just hides it.
   useEffect(() => {
     api.listGroups().then(setGroups, () => {});
+    // Only labels the caller's own allergy warning "Du"; without it it shows initials.
+    api.me().then((me) => setUserId(me.userId), () => {});
   }, []);
 
   const showError = (err: unknown) => {
@@ -181,6 +185,11 @@ export default function RecipeDetail() {
   const stepRows = showOriginal ? full.steps : merged.steps;
   const rows = tab === "ingredient" ? ingredientRows : stepRows;
   const spiceRows = ingredientRows.filter((row) => row.spice);
+  const visibleNames = merged.ingredients.filter((row) => row.status !== "removed").map((row) => row.name);
+  const warnings = allergyWarnings(visibleNames, full.allergies, userId, !!recipe.group_id);
+  const allAllergens = full.allergies.flatMap((a) => a.allergens);
+  const isAllergen = (row: (typeof rows)[number]) =>
+    tab === "ingredient" && (showOriginal || (row as Merged<Ingredient>).status !== "removed") && allergenHits([(row as Ingredient).name], allAllergens).length > 0;
   let stepNumber = 0;
   const renderRow = (row: (typeof rows)[number]) => {
     const item = row as Merged<Ingredient> | Merged<Step>;
@@ -196,6 +205,7 @@ export default function RecipeDetail() {
         number={stepNumber}
         scale={scale}
         showOriginal={showOriginal}
+        allergen={isAllergen(row)}
         onEdit={() => openSheet(tab, item)}
         onRestore={() => void removeAdjustment(item.id, "remove")}
         busy={busy}
@@ -259,6 +269,12 @@ export default function RecipeDetail() {
         <button className="add-item" disabled={busy} onClick={togglePlanned}>
           {planned ? "Auf der Einkaufsliste" : "Auf die Einkaufsliste"}
         </button>
+
+        {warnings.length > 0 && (
+          <div className="allergy-box" role="note">
+            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+          </div>
+        )}
 
         <div className="tabs" role="tablist">
           <button role="tab" id={`${panelId}-ingredient`} aria-controls={panelId} aria-selected={tab === "ingredient"} onClick={() => setTab("ingredient")}>Zutaten · {ingredientRows.length}</button>

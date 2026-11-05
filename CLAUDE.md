@@ -10,6 +10,9 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — Allergies: only `GET /api/recipes/:id` adds `allergies`; the loaders return `RecipeData` without them, so snapshots/share links can never carry them. The list holds only users with at least one allergen. Why: allergies are personal data, scoped per viewer.
+- 2026-11-05 — Allergen presets also list "nüsse"/"erdnüsse" (plural umlaut forms "nuss" misses); a typed allergen equal to a preset name in any case uses the preset's keywords. Why: "Haselnüsse" must hit Nüsse.
+- 2026-11-05 — The allergy warning box sits above the Zutaten/Schritte tabs (visible on both); cards warn from `ingredient_names` (originals + added, modifications/removals not applied). Why: a warning should not hide behind a tab; cards reuse what Home already has.
 - 2026-11-05 — Add sheet: one form in the order Name, Einheit, Menge (not a wizard); the wheel is a native `<select>` with an "etwas" (null) option, and changing the unit resets an amount the new unit's list lacks. Suggestions come from `GET /api/pantry/suggestions` (Vorrat, then non-fallback matches, with the AI's unit for matched names); the suggested unit fills in only until the user picks one. Why: owner's request; native controls keep it simple.
 - 2026-11-05 — `spice` is required in `IngredientValues`/`ParsedRecipe` (the AI must set it), but request inputs use `IngredientInput` (default false) for create, add and share snapshots; modify keeps the plain partial so `{ spice: true }` stays alone. Add adjustments stored before 0008 have no `spice` and read as falsy. Why: a default inside `.partial()` would fill `spice: false` into every modify.
 - 2026-11-05 — Unit inputs became `UnitSelect` over `UNITS`; `.own-unit` widened 76→104 px (also the step-minutes field). Why: "Packung" does not fit 76 px.

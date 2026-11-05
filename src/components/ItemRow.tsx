@@ -15,9 +15,10 @@ interface Props {
   busy?: boolean;
   sharedBy?: string; // group recipes only ("" = author unknown): initials of whoever wrote the adjustment or note
   by?: string; // who made the adjustments; "dir" on your own recipes
+  allergen?: boolean; // the ingredient hits someone's allergy
 }
 
-export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir", sharedBy }: Props) {
+export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir", sharedBy, allergen = false }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -53,6 +54,7 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
       {ingredient && <strong className="item-amount">{formatQuantity(scale(ingredient.amount), ingredient.unit)}</strong>}
       <div className="item-body">
         <span className="item-main">{ingredient ? ingredient.name : step?.text}</span>
+        {allergen && <span className="allergy-marker">Allergen</span>}
         {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
         {note && <span className="item-note">{note}</span>}
         {sharedBy && <span className="meta small">Geteilt von {sharedBy}</span>}

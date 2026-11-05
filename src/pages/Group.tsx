@@ -5,6 +5,7 @@ import { ApiError, api, messageOf, type GroupDetail } from "../api";
 import RecipeCard from "../components/RecipeCard";
 import TabBar from "../components/TabBar";
 import TextSheet from "../components/TextSheet";
+import { allergyWarnings } from "../../shared/allergens";
 import { initials } from "../../shared/format";
 
 const inviteError = (err: unknown) => {
@@ -21,6 +22,7 @@ export default function Group() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [userId, setUserId] = useState("");
 
   const load = useCallback(() => {
     setError("");
@@ -30,6 +32,8 @@ export default function Group() {
     });
   }, [id]);
   useEffect(load, [load]);
+  // Only labels the caller's own warnings "Du"; without it they show initials.
+  useEffect(() => void api.me().then((me) => setUserId(me.userId), () => {}), []);
 
   const leave = async () => {
     const last = group?.members.length === 1;
@@ -86,7 +90,7 @@ export default function Group() {
       {group.recipes.length === 0 && <p className="empty">Noch keine Rezepte</p>}
       <div className="list">
         {group.recipes.map((recipe) => (
-          <RecipeCard key={recipe.id} recipe={recipe} />
+          <RecipeCard key={recipe.id} recipe={recipe} warnings={allergyWarnings(recipe.ingredient_names, group.allergies, userId, true)} />
         ))}
       </div>
       <button className="text-button muted-button" onClick={() => void leave()}>Gruppe verlassen</button>

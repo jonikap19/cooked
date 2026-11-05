@@ -5,6 +5,7 @@ import { ApiError, api, SessionExpiredError } from "../api";
 import Invites from "../components/Invites";
 import RecipeCard from "../components/RecipeCard";
 import TabBar from "../components/TabBar";
+import { allergyWarnings } from "../../shared/allergens";
 import { countLabel, initials } from "../../shared/format";
 import type { RecipeSummary } from "../../shared/schema";
 
@@ -19,6 +20,7 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState("Alle");
+  const [allergens, setAllergens] = useState<string[]>([]);
 
   const [loadError, setLoadError] = useState("");
 
@@ -34,6 +36,8 @@ export default function Home() {
   useEffect(() => {
     load();
     api.me().then((me) => setUserId(me.userId)).catch(() => {});
+    // A failed lookup just shows no warnings.
+    api.getAllergies().then(setAllergens, () => {});
   }, [load]);
 
   const all = recipes ?? [];
@@ -53,6 +57,7 @@ export default function Home() {
         <div>
           <h1>Mein Kochbuch</h1>
           <p className="meta">{`${countLabel(all.length, "Rezept", "Rezepte")} · ${adjusted} angepasst`}</p>
+          <Link to="/allergien" className="text-button">Allergien & No-Gos</Link>
         </div>
         <div className="avatar">{initials(userId)}</div>
       </header>
@@ -92,7 +97,7 @@ export default function Home() {
       {recipes && shown.length === 0 && <p className="empty">{all.length === 0 ? "Noch keine Rezepte" : "Keine Treffer"}</p>}
       <div className="list">
         {shown.map((recipe) => (
-          <RecipeCard key={recipe.id} recipe={recipe} />
+          <RecipeCard key={recipe.id} recipe={recipe} warnings={allergyWarnings(recipe.ingredient_names, [{ user_id: userId, allergens }], userId, false)} />
         ))}
       </div>
 
