@@ -10,6 +10,8 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — Dark mode via `prefers-color-scheme` tokens. `--accent` is green used as text/border/ring (lightened in dark); `--primary` stays the deep green for fills and cook mode. Pastel placeholders are dimmed by an inset shadow (`--placeholder-dim`). Why: `--primary` as text on a dark page is unreadable.
+- 2026-11-05 — Home: the avatar links to Allergien (the separate link is gone) and "0 angepasst" is hidden. "Immer da" stays a one-tap checkbox on each Vorrat row. Why: moving it into the sheet would cost taps and need an API change for new items.
 - 2026-11-05 — UI polish: the allergy box sits right under the title meta; "In Gruppe teilen" moved into the Teilen sheet ("In eine Gruppe"); the shopping-list toggle is a solid `.plan-button` (filled + check when planned); every sheet has a visible Abbrechen/Schließen/Fertig button. Why: dashed `.add-item` is for adding rows only, and iOS has no Esc to close a sheet.
 - 2026-11-05 — Comments (ingredient and step notes): one per row; anyone who can open the recipe may edit it and becomes its author. Group recipes label it "Kommentar · <initials>" ("Du" for yourself); personal recipes and share previews show just "Kommentar". Why: owner wants one shared comment per step with a visible author.
 - 2026-11-05 — `CONVERTIBLE` also maps `stk`, `stk.`, `st.`, `stück` to "Stück" (factor 1). Why: recipes imported before the Stück unit list say "Stk"; without the alias their shopping-list/Vorrat keys would not combine with new ones. A spelling alias, not a conversion.

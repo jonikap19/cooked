@@ -56,10 +56,9 @@ export default function Home() {
       <header className="home-header">
         <div>
           <h1>Mein Kochbuch</h1>
-          <p className="meta">{`${countLabel(all.length, "Rezept", "Rezepte")} · ${adjusted} angepasst`}</p>
-          <Link to="/allergien" className="text-button">Allergien & No-Gos</Link>
+          <p className="meta">{[countLabel(all.length, "Rezept", "Rezepte"), adjusted > 0 && `${adjusted} angepasst`].filter(Boolean).join(" · ")}</p>
         </div>
-        <div className="avatar">{initials(userId)}</div>
+        <Link to="/allergien" className="avatar" aria-label="Allergien & No-Gos" title="Allergien & No-Gos">{initials(userId)}</Link>
       </header>
 
       <Invites />
