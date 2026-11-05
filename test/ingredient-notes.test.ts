@@ -43,6 +43,13 @@ async function addIngredient(email: string, rid: string) {
   return ((await res.json()) as { id: string }).id;
 }
 
+async function addStep(email: string, rid: string) {
+  const res = await call(email, `/api/recipes/${rid}/adjustments`, "POST", {
+    target_type: "step", action: "add", target_id: null, new_values: { text: "Servieren", duration_minutes: null },
+  });
+  return ((await res.json()) as { id: string }).id;
+}
+
 describe("ingredient notes", () => {
   it("stores a note on an original ingredient with the author, trimmed", async () => {
     const a = user();
@@ -59,11 +66,30 @@ describe("ingredient notes", () => {
     expect(await count(id)).toBe(1);
   });
 
-  it("rejects a step id, a foreign recipe's ingredient and an unknown id with 404", async () => {
+  it("stores a note on an original step and on an added step", async () => {
+    const a = user();
+    const { id, stepId } = await setup(a);
+    const added = await addStep(a, id);
+    expect((await put(a, id, stepId, "kurz")).status).toBe(204);
+    expect((await put(a, id, added, "lang")).status).toBe(204);
+    expect(await notes(a, id)).toMatchObject([{ target_id: stepId, body: "kurz" }, { target_id: added, body: "lang" }]);
+  });
+
+  it("drops the note when its added step is deleted", async () => {
+    const a = user();
+    const { id, stepId } = await setup(a);
+    const added = await addStep(a, id);
+    await put(a, id, added, "x");
+    await put(a, id, stepId, "y");
+    expect((await call(a, `/api/recipes/${id}/adjustments/${added}`, "DELETE")).status).toBe(204);
+    expect((await notes(a, id)).map((x: any) => x.target_id)).toEqual([stepId]);
+  });
+
+  it("rejects a foreign recipe's ingredient or step and an unknown id with 404", async () => {
     const a = user();
     const one = await setup(a);
     const two = await setup(a);
-    expect((await put(a, one.id, one.stepId, "x")).status).toBe(404);
+    expect((await put(a, one.id, two.stepId, "x")).status).toBe(404);
     expect((await put(a, one.id, two.ingredientId, "x")).status).toBe(404);
     expect((await put(a, one.id, "nope", "x")).status).toBe(404);
     expect(await count(one.id)).toBe(0);

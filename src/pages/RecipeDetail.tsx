@@ -145,7 +145,7 @@ export default function RecipeDetail() {
     if (item.status === "added") return api.updateAdjustment(id, item.id, values);
     return api.addAdjustment(id, { target_type: kind, action: "modify", target_id: item.id, new_values: values } as AdjustmentInput);
   };
-  // A note target is the merged row id: the ingredient id, or the add adjustment's id for added rows.
+  // A note target is the merged row id: the ingredient or step id, or the add adjustment's id for added rows.
   const save = (values: IngredientValues | StepValues | null, noteText: string | null) => {
     if (!sheet) return;
     return closeAfter(
@@ -190,7 +190,7 @@ export default function RecipeDetail() {
       <ItemRow
         key={item.id}
         item={item}
-        note={tab === "ingredient" ? noteFor(item.id) : undefined}
+        note={noteFor(item.id)}
         kind={tab}
         sharedBy={showOriginal ? undefined : sharedByFor(item.id, (item as Merged<Ingredient>).adjustmentIds ?? [])}
         number={stepNumber}
@@ -315,7 +315,7 @@ export default function RecipeDetail() {
         <EditSheet
           kind={sheet.kind}
           item={sheet.item}
-          note={sheet.kind === "ingredient" && sheet.item ? noteFor(sheet.item.id) : ""}
+          note={sheet.item ? noteFor(sheet.item.id) : ""}
           servingsHint={servings !== recipe.servings ? recipe.servings : null}
           busy={busy}
           serverError={error}

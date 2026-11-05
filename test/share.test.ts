@@ -19,7 +19,7 @@ async function call(email: string, path: string, method = "GET", body?: unknown,
 }
 const get = async (email: string, id: string) => (await (await call(email, `/api/recipes/${id}`)).json()) as RecipeFull;
 
-/** A recipe with an adjustment, an ingredient note and an image. */
+/** A recipe with an adjustment, an ingredient note, a step note and an image. */
 async function source(email: string) {
   const res = await call(email, "/api/recipes", "POST", {
     title: "Pasta",
@@ -36,6 +36,8 @@ async function source(email: string) {
     target_type: "ingredient", action: "modify", target_id: nudeln.id, new_values: { amount: 300 },
   });
   await call(email, `/api/recipes/${id}/ingredient-notes/${nudeln.id}`, "PUT", { text: "al dente" });
+  const [kochen] = (await get(email, id)).steps;
+  await call(email, `/api/recipes/${id}/ingredient-notes/${kochen.id}`, "PUT", { text: "nicht zu weich" });
   await env.IMAGES.put(id, new Uint8Array([1, 2, 3]), { httpMetadata: { contentType: "image/png" } });
   await env.DB.prepare("UPDATE recipes SET image_url = ? WHERE id = ?").bind(`/api/images/${id}`, id).run();
   return id;
@@ -73,8 +75,8 @@ describe("share links", () => {
     const preview = JSON.parse(text) as Preview;
     expect(preview.recipe.recipe.title).toBe("Pasta");
     expect(preview.recipe.adjustments).toHaveLength(1);
-    expect(preview.recipe.ingredient_notes).toEqual([expect.objectContaining({ body: "al dente" })]);
-    expect(preview.recipe.ingredient_notes[0]).not.toHaveProperty("author");
+    expect(preview.recipe.ingredient_notes.map((n) => n.body).sort()).toEqual(["al dente", "nicht zu weich"]);
+    for (const note of preview.recipe.ingredient_notes) expect(note).not.toHaveProperty("author");
     expect(preview.recipe.adjustments[0]).not.toHaveProperty("author");
     expect(preview.expires_at).toBe(expires_at);
     expect(preview.shared_by_initials).toBe(initials(alice));
@@ -106,7 +108,9 @@ describe("share links", () => {
       const copy = JSON.parse(text) as RecipeFull;
       expect(copy.recipe.title).toBe("Pasta");
       expect(copy.recipe.image_url).toBe(`/api/images/${copyId}`);
-      expect(copy.ingredient_notes).toMatchObject([{ body: "al dente", author: bob }]);
+      expect(copy.ingredient_notes).toHaveLength(2);
+      expect(copy.ingredient_notes).toEqual(expect.arrayContaining([expect.objectContaining({ target_id: copy.steps[0].id, body: "nicht zu weich", author: bob })]));
+      expect(copy.ingredient_notes.every((n) => n.author === bob)).toBe(true);
       expect(await (await env.IMAGES.get(copyId))?.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3]).buffer);
     }
   });

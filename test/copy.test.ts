@@ -53,6 +53,8 @@ async function source(email: string) {
     target_type: "ingredient", action: "add", target_id: null, insert_after: salz.id, new_values: { name: "Käse", amount: 50, unit: "g" },
   });
   await call(email, `/api/recipes/${id}/ingredient-notes/${kaese}`, "PUT", { text: "gerieben" });
+  const [, , servieren] = full.steps;
+  await call(email, `/api/recipes/${id}/ingredient-notes/${servieren.id}`, "PUT", { text: "heiß" });
   await call(email, `/api/recipes/${id}/note`, "PUT", { text: "Lecker" });
   await call(email, `/api/recipes/${id}`, "PATCH", { tags: ["Schnell", "Italienisch"] });
   await env.IMAGES.put(id, new Uint8Array([1, 2, 3]), { httpMetadata: { contentType: "image/png" } });
@@ -88,7 +90,13 @@ describe("recipe copy", () => {
 
     const copyKaese = copy.adjustments.find((x) => x.action === "add" && x.target_type === "ingredient")!;
     expect(copyKaese.id).not.toBe(kaese);
-    expect(copy.ingredient_notes).toMatchObject([{ target_id: copyKaese.id, body: "gerieben", author: b }]); // the copy belongs to whoever made it
+    const copyServieren = copy.steps[2];
+    expect(copyServieren.id).not.toBe(src.steps[2].id);
+    expect(copy.ingredient_notes).toHaveLength(2);
+    expect(copy.ingredient_notes).toEqual(expect.arrayContaining([ // the copy belongs to whoever made it
+      expect.objectContaining({ target_id: copyKaese.id, body: "gerieben", author: b }),
+      expect.objectContaining({ target_id: copyServieren.id, body: "heiß", author: b }),
+    ]));
 
     expect(copy.recipe.image_url).toBe(`/api/images/${copyId}`);
     await call(a, `/api/recipes/${id}`, "DELETE");

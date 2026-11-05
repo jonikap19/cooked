@@ -20,7 +20,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 - 2026-11-04 — Spec deviation: the last cooking step's "Fertig" became "Fertig gekocht" (closing the sheet or the top exit leaves without subtracting); a cooked submit with no items still removes the planned entry. Why: one exit, and the sheet is the only path that touches the Vorrat.
 - 2026-11-04 — Spec deviation: renaming a Vorrat item is a plain edit and does not teach the matcher (no alias). Why: a Vorrat row has no source spelling; aliasing its old name would rewrite every recipe ingredient spelled that way. Corrections from the shopping list will teach it.
 - 2026-11-04 — Spec deviation: a typed Vorrat item keeps the unit it was typed in (after kg→g etc.); the matcher supplies only the name. Why: amounts never cross units.
-- 2026-11-04 — Spec deviation: ingredient notes are not shown in cooking mode. Why: CookMode has no ingredient list; add them with one later.
+- 2026-11-05 — Step notes reuse `ingredient_notes` (no rename/migration) and are shown in cooking mode under the step text; ingredient notes still are not (CookMode has no ingredient list; add them with one later). Why: one table and route for both; no ingredient list to hang them on.
 - 2026-11-03 — Spec deviation: `recipes` has extra `total_minutes` and `tags` (JSON text). Why: cards/preview/"Unter 30 Min" and tag chips need them.
 - 2026-11-03 — Spec deviation: `adjustments.updated_at`. Why: "Zuletzt geändert am …" after a modify upsert.
 - 2026-11-03 — Spec deviation: `source_platform` is picked by the user (chips), preselected via `detectPlatform`. Why: matches design.

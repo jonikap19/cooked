@@ -5,7 +5,7 @@ import type { Ingredient, Step } from "../../shared/schema";
 
 interface Props {
   item: Merged<Ingredient> | Merged<Step>;
-  note?: string; // ingredient note, shown muted: a note is not an adjustment
+  note?: string; // ingredient or step note, shown muted: a note is not an adjustment
   kind: "ingredient" | "step";
   number?: number;
   scale: (n: number | null) => number | null;

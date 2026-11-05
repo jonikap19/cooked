@@ -11,7 +11,7 @@ interface Props {
   kind: "ingredient" | "step";
   item: Merged<Ingredient> | Merged<Step> | null; // null = new item
   servingsHint: number | null; // set when the stepper differs from the base servings
-  note: string; // stored note of the ingredient; "" when none
+  note: string; // stored note of the ingredient or step; "" when none
   onSave(values: Values | null, note: string | null): void; // values: add/added full, else only changed keys; null = unchanged. note: null = unchanged
   onReset(): void;
   onRemove(): void;
@@ -51,7 +51,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
     if (!item) return onSave(next, null);
     const changed = changedKeys(item as unknown as Values, next);
     const valuesChanged = Object.keys(changed).length > 0;
-    const noteChanged = ingredient !== null && note.trim() !== storedNote;
+    const noteChanged = note.trim() !== storedNote;
     if (!valuesChanged && !noteChanged) return onClose();
     onSave(valuesChanged ? (item.status === "added" ? next : (changed as Values)) : null, noteChanged ? note.trim() : null);
   };
@@ -74,12 +74,6 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
             <label className="spice-check">
               <input type="checkbox" checked={spice} onChange={(e) => setSpice(e.target.checked)} /> Gewürz
             </label>
-            {ingredient && (
-              <>
-                <label className="field-label" htmlFor={ids[3]}>Notiz</label>
-                <textarea id={ids[3]} className="field" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
-              </>
-            )}
           </>
         ) : (
           <>
@@ -87,6 +81,12 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
             <textarea id={ids[0]} className="field" rows={4} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} />
             <label className="field-label" htmlFor={ids[1]}>Dauer in Min</label>
             <input id={ids[1]} className="field" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} />
+          </>
+        )}
+        {item && (
+          <>
+            <label className="field-label" htmlFor={ids[3]}>Notiz</label>
+            <textarea id={ids[3]} className="field" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
           </>
         )}
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}
