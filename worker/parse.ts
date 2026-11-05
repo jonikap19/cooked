@@ -1,18 +1,19 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { ParsedRecipe } from "../shared/schema";
+import { UNITS } from "../shared/units";
 import type { AppEnv } from "./auth";
 import { invalid, readJson } from "./recipes";
 
 export const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
+export const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
 
 Regeln:
 - Antworte ausschließlich auf Deutsch, ohne Emojis.
 - Mengen (amount) sind Zahlen: "½" wird 0.5, "1 1/2" wird 1.5, Bereiche wie "2-3" ergeben die untere Grenze (2).
 - Wenn keine Menge genannt ist (z. B. "nach Geschmack", "etwas"), setze amount auf null.
-- Einheiten (unit) kurz: g, ml, EL, TL, Stk, Prise. Ohne Einheit: leerer String.
+- Einheiten (unit): ${UNITS.filter(Boolean).join(", ")}. Nimm die passendste; passt keine, nimm die Einheit aus dem Text. Ohne Einheit: leerer String.
 - Erfinde niemals Zutaten, die nicht im Text stehen.
 - Ein Arbeitsschritt pro Schritt: höchstens zwei kurze Sätze, nur eine Handlung. Teile zusammengesetzte Anweisungen bei "dann", "danach", "anschließend", "inzwischen" und ";" in eigene Schritte. Eine Dauer bleibt bei der Handlung, zu der sie gehört. Führe nie Schritte zusammen. Behalte Reihenfolge und Wortlaut so weit wie möglich bei.
 - duration_minutes eines Schritts nur setzen, wenn im Text eine Dauer genannt wird, sonst null.

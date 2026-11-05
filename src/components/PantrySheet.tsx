@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import UnitSelect from "./UnitSelect";
 import { pantryAmount } from "../lib/edit";
 import type { PantryItem } from "../../shared/schema";
 
@@ -39,7 +40,7 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
         <label className="field-label" htmlFor={ids[0]}>Menge</label>
         <input id={ids[0]} className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <label className="field-label" htmlFor={ids[1]}>Einheit</label>
-        <input id={ids[1]} className="field" maxLength={30} value={unit} onChange={(e) => setUnit(e.target.value)} />
+        <UnitSelect id={ids[1]} value={unit} onChange={setUnit} />
         <label className="field-label" htmlFor={ids[2]}>Name</label>
         <input id={ids[2]} className="field" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}

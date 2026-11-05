@@ -10,6 +10,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — Unit inputs became `UnitSelect` over `UNITS`; `.own-unit` widened 76→104 px (also the step-minutes field). Why: "Packung" does not fit 76 px.
 - 2026-11-05 — Removed `docs/` (spec, designs, plans, link-import findings); all shipped. "Spec deviation" entries below refer to `docs/spec.md` in git history (before this commit). Why: done plans were noise.
 - 2026-11-04 — Phase H carry-over: the share preview strips `author` only from ingredient_notes — extend it to any new author fields (with a no-'@' test); insertSnapshot must default new fields for payloads created before the Phase H deploy (they live 24 h + 7 d); route loadRecipeUnchecked callers through the single access check. Why: final Phase G review.
 - 2026-11-04 — Spec deviation: shopping-list and cooked amounts stay in the recipe ingredient's own unit (after kg→g etc.); the AI's standard unit (`ingredient_matches.unit`) is stored but unused. Why: amounts never cross units.

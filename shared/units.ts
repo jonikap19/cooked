@@ -1,3 +1,5 @@
+export const UNITS = ["", "g", "kg", "ml", "l", "EL", "TL", "Prise", "Msp", "Stück", "Bund", "Dose", "Packung", "Zehe", "Scheibe", "Becher", "Tasse"] as const;
+
 const CONVERTIBLE: Record<string, { unit: string; factor: number }> = {
   g: { unit: "g", factor: 1 },
   kg: { unit: "g", factor: 1000 },

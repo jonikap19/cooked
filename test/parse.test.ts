@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError } from "../worker/parse";
+import { UNITS } from "../shared/units";
+import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError, SYSTEM_PROMPT } from "../worker/parse";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
 const recipe = {
@@ -14,6 +15,10 @@ const recipe = {
 };
 const fakeAi = (run: () => Promise<unknown>) => ({ run }) as unknown as Ai;
 const ok = (response: unknown) => fakeAi(async () => ({ response }));
+
+it("lists every unit in the system prompt", () => {
+  for (const unit of UNITS.filter(Boolean)) expect(SYSTEM_PROMPT).toContain(unit);
+});
 
 describe("parseRecipeText", () => {
   it("returns a valid response object and keeps amount null", async () => {
