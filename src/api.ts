@@ -78,6 +78,7 @@ export const api = {
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
   saveIngredientNote: (id: string, targetId: string, text: string) =>
     request<void>(`/api/recipes/${id}/ingredient-notes/${targetId}`, send("PUT", { text })),
+  pantrySuggestions: () => request<{ name: string; unit: string }[]>("/api/pantry/suggestions"),
   listPantry: () => request<PantryItem[]>("/api/pantry"),
   addPantry: (name: string, amount: number | null, unit: string) =>
     request<PantryItem>("/api/pantry", send("POST", { name, amount, unit })),

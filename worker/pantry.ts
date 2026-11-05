@@ -3,7 +3,7 @@ import { addAmount, subtractAmount } from "../shared/pantry";
 import { PantryAdd, PantryEdit, PantryKey, type PantryItem } from "../shared/schema";
 import { nameKey, toBase } from "../shared/units";
 import type { AppEnv } from "./auth";
-import { matchName } from "./match";
+import { knownItems, matchName } from "./match";
 import { invalid, notFound, readJson } from "./recipes";
 
 type Row = { canonical_name: string; unit: string; amount: number | null; always_at_home: number };
@@ -64,6 +64,12 @@ export async function readPantry(db: D1Database, userId: string): Promise<Pantry
 export const pantry = new Hono<AppEnv>();
 
 pantry.get("/api/pantry", async (c) => c.json(await readPantry(c.env.DB, c.var.userId)));
+
+pantry.get("/api/pantry/suggestions", async (c) => {
+  const seen = new Set<string>();
+  const items = (await knownItems(c.env.DB, c.var.userId)).filter((i) => !seen.has(nameKey(i.name)) && seen.add(nameKey(i.name)));
+  return c.json(items);
+});
 
 pantry.post("/api/pantry", async (c) => {
   const parsed = PantryAdd.safeParse(await readJson(c));

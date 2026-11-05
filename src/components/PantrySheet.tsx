@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { api } from "../api";
 import UnitSelect from "./UnitSelect";
-import { pantryAmount } from "../lib/edit";
+import { amountOptions, pantryAmount } from "../lib/edit";
+import { nameKey } from "../../shared/units";
 import type { PantryItem } from "../../shared/schema";
 
 // No thousands separator, so parseNumber reads the edit prefill back.
@@ -17,13 +19,31 @@ interface SheetProps {
 
 export default function PantrySheet({ item, onSave, onDelete, onClose, error: serverError, busy }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const ids = [useId(), useId(), useId()];
-  const [amount, setAmount] = useState(item?.amount == null ? "" : formatAmount(item.amount));
+  const ids = [useId(), useId(), useId(), useId()];
+  const [amount, setAmount] = useState(item?.amount == null ? "" : String(item.amount));
   const [unit, setUnit] = useState(item?.unit ?? "");
   const [name, setName] = useState(item?.canonical_name ?? "");
   const [error, setError] = useState("");
+  const [suggestions, setSuggestions] = useState<{ name: string; unit: string }[]>([]);
+  // The suggested unit only fills in until the user picks one themselves.
+  const unitPicked = useRef(item !== null);
 
   useEffect(() => dialog.current?.showModal(), []);
+  // A failed fetch just means no suggestions.
+  useEffect(() => void api.pantrySuggestions().then(setSuggestions, () => undefined), []);
+
+  const options = [...(item?.always_at_home ? [0] : []), ...amountOptions(unit, item?.amount ?? null)];
+
+  const changeName = (value: string) => {
+    setName(value);
+    const suggestion = suggestions.find((s) => nameKey(s.name) === nameKey(value));
+    if (suggestion && !unitPicked.current) changeUnit(suggestion.unit);
+  };
+  const changeUnit = (value: string) => {
+    setUnit(value);
+    // A wheel value that does not exist for the new unit would show as another one.
+    if (!amountOptions(value, item?.amount ?? null).includes(Number(amount))) setAmount("");
+  };
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -37,12 +57,18 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
     <dialog ref={dialog} className="sheet" onClose={onClose} onClick={(event) => event.target === dialog.current && onClose()}>
       <form className="sheet-body" onSubmit={submit}>
         <h2>{item ? "Artikel bearbeiten" : "Artikel hinzufügen"}</h2>
-        <label className="field-label" htmlFor={ids[0]}>Menge</label>
-        <input id={ids[0]} className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <label className="field-label" htmlFor={ids[0]}>Name</label>
+        <input id={ids[0]} className="field" maxLength={100} list={ids[3]} value={name} onChange={(e) => changeName(e.target.value)} />
+        <datalist id={ids[3]}>
+          {suggestions.map((s) => <option key={s.name} value={s.name} />)}
+        </datalist>
         <label className="field-label" htmlFor={ids[1]}>Einheit</label>
-        <UnitSelect id={ids[1]} value={unit} onChange={setUnit} />
-        <label className="field-label" htmlFor={ids[2]}>Name</label>
-        <input id={ids[2]} className="field" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        <UnitSelect id={ids[1]} value={unit} onChange={(value) => { unitPicked.current = true; changeUnit(value); }} />
+        <label className="field-label" htmlFor={ids[2]}>Menge</label>
+        <select id={ids[2]} className="field" value={amount} onChange={(e) => setAmount(e.target.value)}>
+          <option value="">etwas</option>
+          {options.map((n) => <option key={n} value={String(n)}>{formatAmount(n)}</option>)}
+        </select>
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}
         <button type="submit" className="primary-button inline" disabled={busy}>Speichern</button>
         {item && onDelete && (

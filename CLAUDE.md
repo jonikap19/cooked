@@ -10,6 +10,7 @@ Claude's log of important learnings and decisions. Newest first. Keep entries sh
 
 ### Decisions
 
+- 2026-11-05 — Add sheet: one form in the order Name, Einheit, Menge (not a wizard); the wheel is a native `<select>` with an "etwas" (null) option, and changing the unit resets an amount the new unit's list lacks. Suggestions come from `GET /api/pantry/suggestions` (Vorrat, then non-fallback matches, with the AI's unit for matched names); the suggested unit fills in only until the user picks one. Why: owner's request; native controls keep it simple.
 - 2026-11-05 — `spice` is required in `IngredientValues`/`ParsedRecipe` (the AI must set it), but request inputs use `IngredientInput` (default false) for create, add and share snapshots; modify keeps the plain partial so `{ spice: true }` stays alone. Add adjustments stored before 0008 have no `spice` and read as falsy. Why: a default inside `.partial()` would fill `spice: false` into every modify.
 - 2026-11-05 — Unit inputs became `UnitSelect` over `UNITS`; `.own-unit` widened 76→104 px (also the step-minutes field). Why: "Packung" does not fit 76 px.
 - 2026-11-05 — Removed `docs/` (spec, designs, plans, link-import findings); all shipped. "Spec deviation" entries below refer to `docs/spec.md` in git history (before this commit). Why: done plans were noise.

@@ -28,3 +28,16 @@ export function changedKeys<T extends object>(current: T, next: T): Partial<T> {
   }
   return changed;
 }
+
+const range = (from: number, to: number, step: number) => Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => from + i * step);
+
+// Values of the amount wheel for a unit; an amount outside the list (an existing item) stays selectable.
+export function amountOptions(unit: string, current: number | null): number[] {
+  const options =
+    unit === "g" || unit === "ml"
+      ? [25, 50, 75, 100, ...range(150, 1000, 50)]
+      : unit === "kg" || unit === "l"
+        ? [0.25, 0.5, 0.75, ...range(1, 5, 0.5)]
+        : [0.5, ...range(1, 20, 1)];
+  return current === null || options.includes(current) ? options : [...options, current].sort((a, b) => a - b);
+}

@@ -129,4 +129,21 @@ describe("applyToPantry", () => {
     ]);
     expect(await list(u)).toMatchObject([{ canonical_name: "Mehl", amount: 12 }]);
   });
+
+  it("suggests the caller's Vorrat and matched names once, never another user's", async () => {
+    const u = user();
+    const other = user();
+    await add(u, "Mehl", 500, "g");
+    await add(other, "Geheim", 1, "Stück");
+    const recipeId = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO recipes (id, user_id, title, servings) VALUES (?, ?, 'T', 2)").bind(recipeId, u).run();
+    const insert = (target: string, name: string, unit: string, matchedAt: string) =>
+      env.DB.prepare("INSERT INTO ingredient_matches (recipe_id, target_id, user_id, source_name, canonical_name, unit, matched_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(recipeId, target, u, name, name, unit, matchedAt).run();
+    await insert("a", "mehl", "g", "2026-01-01T00:00:00Z");
+    await insert("b", "Zwiebel", "Stück", "2026-01-01T00:00:00Z");
+    await insert("c", "Zwiebel", "g", "2026-02-01T00:00:00Z");
+    const res = await app.request("/api/pantry/suggestions", { headers: await authHeaders(u) }, testEnv());
+    expect(await res.json()).toEqual([{ name: "Mehl", unit: "g" }, { name: "Zwiebel", unit: "g" }]);
+  });
 });
