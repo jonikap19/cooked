@@ -17,6 +17,7 @@ const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_note
   adjustments,
   note,
   ingredient_notes: ingredient_notes.map((n) => ({ ...n, author: "" })),
+  allergies: [], // a share link carries no one's allergies
 });
 
 export default function SharedRecipe() {
@@ -100,7 +101,7 @@ export default function SharedRecipe() {
               <ItemRow
                 key={item.id}
                 item={item}
-                note={tab === "ingredient" ? noteFor(item.id) : undefined}
+                note={noteFor(item.id)}
                 kind={tab}
                 number={stepNumber}
                 scale={(n) => n}

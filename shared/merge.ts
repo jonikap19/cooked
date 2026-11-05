@@ -38,7 +38,7 @@ function mergeItems<T extends Ingredient | Step>(
   ];
 }
 
-export function mergeRecipe(full: RecipeFull) {
+export function mergeRecipe(full: Pick<RecipeFull, "ingredients" | "steps" | "adjustments">) {
   const ofType = (type: Adjustment["target_type"]) => full.adjustments.filter((a) => a.target_type === type);
   return {
     ingredients: mergeItems(full.ingredients, ofType("ingredient")),

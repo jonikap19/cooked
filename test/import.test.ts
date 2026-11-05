@@ -34,7 +34,7 @@ const recipe = {
   title: "Linsensuppe",
   servings: 4,
   total_minutes: 90,
-  ingredients: [{ name: "Linsen", amount: 250, unit: "g" }],
+  ingredients: [{ name: "Linsen", amount: 250, unit: "g", spice: false }],
   steps: [{ text: "Kochen", duration_minutes: 40 }],
 };
 let aiInput: string | undefined;

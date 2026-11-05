@@ -1,18 +1,20 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { ParsedRecipe } from "../shared/schema";
+import { IngredientInput, ParsedRecipe } from "../shared/schema";
+import { UNITS } from "../shared/units";
 import type { AppEnv } from "./auth";
 import { invalid, readJson } from "./recipes";
 
 export const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
+export const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Du bekommst den Text eines Social-Media-Beitrags oder ein Rezept und wandelst ihn in strukturierte Daten um.
 
 Regeln:
 - Antworte ausschließlich auf Deutsch, ohne Emojis.
 - Mengen (amount) sind Zahlen: "½" wird 0.5, "1 1/2" wird 1.5, Bereiche wie "2-3" ergeben die untere Grenze (2).
 - Wenn keine Menge genannt ist (z. B. "nach Geschmack", "etwas"), setze amount auf null.
-- Einheiten (unit) kurz: g, ml, EL, TL, Stk, Prise. Ohne Einheit: leerer String.
+- Einheiten (unit): ${UNITS.filter(Boolean).join(", ")}. Nimm die passendste; passt keine, nimm die Einheit aus dem Text. Ohne Einheit: leerer String.
+- spice: true für Gewürze, getrocknete Kräuter, Salz, Pfeffer und Gewürzmischungen, sonst false (frische Kräuter, z. B. im Bund, sind false).
 - Erfinde niemals Zutaten, die nicht im Text stehen.
 - Ein Arbeitsschritt pro Schritt: höchstens zwei kurze Sätze, nur eine Handlung. Teile zusammengesetzte Anweisungen bei "dann", "danach", "anschließend", "inzwischen" und ";" in eigene Schritte. Eine Dauer bleibt bei der Handlung, zu der sie gehört. Führe nie Schritte zusammen. Behalte Reihenfolge und Wortlaut so weit wie möglich bei.
 - duration_minutes eines Schritts nur setzen, wenn im Text eine Dauer genannt wird, sonst null.
@@ -58,7 +60,8 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
     console.warn("parse: model call failed:", e instanceof Error ? e.name : "unknown");
     throw new ParseError();
   }
-  const parsed = ParsedRecipe.safeParse(raw);
+  // The AI schema requires spice, but JSON mode does not guarantee it; a missing one means false.
+  const parsed = ParsedRecipe.extend({ ingredients: z.array(IngredientInput).max(100) }).safeParse(raw);
   if (!parsed.success) {
     console.warn("parse: invalid model output at", parsed.error.issues.map((i) => i.path.join(".")).join(", "));
     throw new ParseError();

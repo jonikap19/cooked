@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError } from "../worker/parse";
+import { UNITS } from "../shared/units";
+import { PARSE_TIMEOUT_MS, parseRecipeText, ParseError, SYSTEM_PROMPT } from "../worker/parse";
 import { authHeaders, testApp, testEnv } from "./helpers";
 
 const recipe = {
@@ -7,15 +8,23 @@ const recipe = {
   servings: 2,
   total_minutes: 25,
   ingredients: [
-    { name: "Nudeln", amount: 200, unit: "g" },
-    { name: "Salz", amount: null, unit: "" },
+    { name: "Nudeln", amount: 200, unit: "g", spice: false },
+    { name: "Salz", amount: null, unit: "", spice: true },
   ],
   steps: [{ text: "Kochen", duration_minutes: 10 }],
 };
 const fakeAi = (run: () => Promise<unknown>) => ({ run }) as unknown as Ai;
 const ok = (response: unknown) => fakeAi(async () => ({ response }));
 
+it("lists every unit in the system prompt", () => {
+  for (const unit of UNITS.filter(Boolean)) expect(SYSTEM_PROMPT).toContain(unit);
+});
+
 describe("parseRecipeText", () => {
+  it("defaults a missing spice to false", async () => {
+    const lax = { ...recipe, ingredients: [{ name: "Nudeln", amount: 200, unit: "g" }] };
+    expect((await parseRecipeText(ok(lax), "x")).ingredients[0].spice).toBe(false);
+  });
   it("returns a valid response object and keeps amount null", async () => {
     const r = await parseRecipeText(ok(recipe), "x");
     expect(r).toEqual(recipe);

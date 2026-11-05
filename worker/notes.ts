@@ -6,13 +6,15 @@ import { invalid, notFound, readJson } from "./recipes";
 
 export const notes = new Hono<AppEnv>();
 
-/** True if targetId is an original ingredient of the recipe or one of its added-ingredient adjustments. */
-export async function assertIngredientTarget(db: D1Database, recipeId: string, targetId: string): Promise<boolean> {
+/** True if targetId is an original ingredient or step of the recipe or one of its added-row adjustments. */
+export async function assertNoteTarget(db: D1Database, recipeId: string, targetId: string): Promise<boolean> {
   const row = await db
     .prepare(
       `SELECT 1 AS x FROM ingredients WHERE id = ?1 AND recipe_id = ?2
        UNION ALL
-       SELECT 1 FROM adjustments WHERE id = ?1 AND recipe_id = ?2 AND target_type = 'ingredient' AND action = 'add'`,
+       SELECT 1 FROM steps WHERE id = ?1 AND recipe_id = ?2
+       UNION ALL
+       SELECT 1 FROM adjustments WHERE id = ?1 AND recipe_id = ?2 AND action = 'add'`,
     )
     .bind(targetId, recipeId)
     .first();
@@ -24,7 +26,7 @@ notes.put("/api/recipes/:id/ingredient-notes/:targetId", async (c) => {
   if (!parsed.success) return c.json(invalid, 400);
   const rid = c.req.param("id");
   const targetId = c.req.param("targetId");
-  if (!(await recipeAccess(c.env.DB, c.var.userId, rid)) || !(await assertIngredientTarget(c.env.DB, rid, targetId))) return c.json(notFound, 404);
+  if (!(await recipeAccess(c.env.DB, c.var.userId, rid)) || !(await assertNoteTarget(c.env.DB, rid, targetId))) return c.json(notFound, 404);
   const { text } = parsed.data;
   await (text
     ? c.env.DB.prepare(

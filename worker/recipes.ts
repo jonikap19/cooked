@@ -1,8 +1,9 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { detectPlatform } from "../shared/format";
-import { AdjustmentInput, IngredientValues, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
+import { AdjustmentInput, IngredientInput, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
 import { recipeAccess } from "./access";
+import { allergiesOf } from "./allergies";
 import type { AppEnv } from "./auth";
 import { matchRecipe } from "./match";
 
@@ -89,8 +90,8 @@ recipes.post("/api/recipes", async (c) => {
       "INSERT INTO recipes (id, user_id, title, source_url, source_platform, image_url, servings, total_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     ).bind(id, c.var.userId, r.title, r.source_url, r.source_platform ?? detectPlatform(r.source_url), imageUrl, r.servings, r.total_minutes),
     ...r.ingredients.map((i, pos) =>
-      DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)").bind(
-        crypto.randomUUID(), id, pos, i.name, i.amount, i.unit,
+      DB.prepare("INSERT INTO ingredients (id, recipe_id, position, name, amount, unit, spice) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(
+        crypto.randomUUID(), id, pos, i.name, i.amount, i.unit, i.spice ? 1 : 0,
       ),
     ),
     ...r.steps.map((s, pos) =>
@@ -105,21 +106,24 @@ recipes.post("/api/recipes", async (c) => {
   return c.json({ id }, 201);
 });
 
+// Allergies are per viewer, so only GET /api/recipes/:id adds them; loaders (and so snapshots) never carry them.
+type RecipeData = Omit<RecipeFull, "allergies">;
+
 /** The recipe with all its child rows, or null if it does not exist or this user has no access. */
-export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeFull | null> {
+export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeData | null> {
   return (await recipeAccess(DB, userId, id)) ? loadRecipeUnchecked(DB, id) : null;
 }
 
 /** Any recipe by id, without an access check: the caller must have checked access. */
-export async function loadRecipeUnchecked(DB: D1Database, id: string): Promise<RecipeFull | null> {
+export async function loadRecipeUnchecked(DB: D1Database, id: string): Promise<RecipeData | null> {
   const row = await DB.prepare("SELECT * FROM recipes WHERE id = ?").bind(id).first<RecipeRow>();
   return row && loadChildren(DB, row);
 }
 
-async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull> {
+async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeData> {
   const id = row.id;
   const [ing, steps, adj, note, ingredientNotes] = await DB.batch([
-    DB.prepare("SELECT id, position, name, amount, unit FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
+    DB.prepare("SELECT id, position, name, amount, unit, spice FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare("SELECT id, position, text, duration_minutes FROM steps WHERE recipe_id = ? ORDER BY position").bind(id),
     DB.prepare(
       `SELECT ${ADJ_COLS} FROM adjustments WHERE recipe_id = ? ORDER BY created_at, rowid`,
@@ -129,7 +133,7 @@ async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull>
   ]);
   return {
     recipe: toRecipe(row),
-    ingredients: ing.results as RecipeFull["ingredients"],
+    ingredients: (ing.results as (Omit<RecipeFull["ingredients"][number], "spice"> & { spice: number })[]).map((i) => ({ ...i, spice: i.spice === 1 })),
     steps: steps.results as RecipeFull["steps"],
     adjustments: (adj.results as (Omit<Adjustment, "new_values"> & { new_values: string | null })[]).map((a) => ({
       ...a,
@@ -141,8 +145,13 @@ async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull>
 }
 
 recipes.get("/api/recipes/:id", async (c) => {
-  const full = await loadRecipe(c.env.DB, c.req.param("id"), c.var.userId);
-  return full ? c.json(full) : c.json(notFound, 404);
+  const { DB } = c.env;
+  const full = await loadRecipe(DB, c.req.param("id"), c.var.userId);
+  if (!full) return c.json(notFound, 404);
+  // Access is checked above: on a group recipe the caller is a member, so co-members' allergies may be shown.
+  const { group_id } = full.recipe;
+  const allergies = await allergiesOf(DB, group_id ? { groupId: group_id } : { userId: c.var.userId });
+  return c.json({ ...full, allergies } satisfies RecipeFull);
 });
 
 recipes.patch("/api/recipes/:id", async (c) => {
@@ -246,7 +255,7 @@ recipes.patch("/api/recipes/:id/adjustments/:adjId", async (c) => {
     .first<AdjRow>();
   if (!row) return c.json(notFound, 404);
   if (row.action !== "add") return c.json(invalid, 400);
-  const schema = z.object({ new_values: row.target_type === "ingredient" ? IngredientValues : StepValues });
+  const schema = z.object({ new_values: row.target_type === "ingredient" ? IngredientInput : StepValues });
   const parsed = schema.safeParse(await readJson(c));
   if (!parsed.success) return c.json(invalid, 400);
   await c.env.DB.prepare(`UPDATE adjustments SET new_values = ?, author = ?, updated_at = ${ISO_NOW} WHERE id = ? AND recipe_id = ?`)
@@ -259,12 +268,12 @@ recipes.delete("/api/recipes/:id/adjustments/:adjId", async (c) => {
   const rid = c.req.param("id");
   if (!(await recipeAccess(c.env.DB, c.var.userId, rid))) return c.json(notFound, 404);
   const adjId = c.req.param("adjId");
-  // An added ingredient's note would be orphaned, so it goes first (while the subquery still sees the adjustment).
+  // An added row's note would be orphaned, so it goes first (while the subquery still sees the adjustment).
   // Scoped to a real add adjustment: a 404 here must not delete the note of an original ingredient whose id was passed.
   const [, res] = await c.env.DB.batch([
     c.env.DB.prepare(
       `DELETE FROM ingredient_notes WHERE recipe_id = ?1 AND target_id IN
-       (SELECT id FROM adjustments WHERE id = ?2 AND recipe_id = ?1 AND action = 'add' AND target_type = 'ingredient')`,
+       (SELECT id FROM adjustments WHERE id = ?2 AND recipe_id = ?1 AND action = 'add')`,
     ).bind(rid, adjId),
     c.env.DB.prepare("DELETE FROM adjustments WHERE id = ? AND recipe_id = ?").bind(adjId, rid),
   ]);

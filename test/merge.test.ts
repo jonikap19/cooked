@@ -6,8 +6,8 @@ const recipe = {
   id: "r1", title: "T", source_url: null, source_platform: null, image_url: null,
   servings: 2, total_minutes: null, tags: [], group_id: null, created_at: "2026-01-01",
 };
-const flour = { id: "i1", position: 0, name: "Mehl", amount: 120, unit: "g" };
-const salt = { id: "i2", position: 1, name: "Salz", amount: null, unit: "" };
+const flour = { id: "i1", position: 0, name: "Mehl", amount: 120, unit: "g", spice: false };
+const salt = { id: "i2", position: 1, name: "Salz", amount: null, unit: "", spice: false };
 const stepOne = { id: "s1", position: 0, text: "Kochen", duration_minutes: 6 };
 const stepTwo = { id: "s2", position: 1, text: "Servieren", duration_minutes: null };
 
@@ -16,7 +16,7 @@ const adjustment = (over: Partial<Adjustment>): Adjustment => ({
   new_values: null, author: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...over,
 });
 const full = (adjustments: Adjustment[]): RecipeFull => ({
-  recipe, ingredients: [flour, salt], steps: [stepOne, stepTwo], adjustments, note: "", ingredient_notes: [],
+  recipe, ingredients: [flour, salt], steps: [stepOne, stepTwo], adjustments, note: "", ingredient_notes: [], allergies: [],
 });
 
 describe("mergeRecipe", () => {

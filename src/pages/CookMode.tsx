@@ -145,6 +145,7 @@ export default function CookMode() {
   const diff = step && durationDiffLabel(step.original?.duration_minutes ?? null, step.duration_minutes);
   const chips = timerChips(steps.map((s) => s.id), timers, index, now);
   const minutes = step ? step.duration_minutes ?? detectDuration(step.text) : null;
+  const stepNote = step && full.ingredient_notes.find((n) => n.target_id === step.id)?.body;
   const hint = step?.status === "added" ? "Von dir hinzugefügt"
     : step?.status === "modified" ? `Deine Anpassung: ${diff ?? "Text"}` : null;
 
@@ -165,6 +166,7 @@ export default function CookMode() {
           </div>
           {hint && <span className="cook-hint">{hint}</span>}
           <p className="cook-text">{step.text}</p>
+          {stepNote && <p className="cook-note">{stepNote}</p>}
           {minutes !== null && (
             <StepTimer
               step={step}

@@ -33,15 +33,18 @@ const RETRY_FALLBACK_MS = 24 * 3600_000;
 // Capped at the Vorrat name limit so a fallback name can later become an editable pantry item.
 const fallback = (i: Input): Canonical => ({ canonical_name: i.name.trim().slice(0, 100), unit: normalizeUnit(i.unit).unit });
 
-/** Pantry names first, then earlier matches, most recent first. */
-async function knownNames(DB: D1Database, userId: string): Promise<string[]> {
-  const [pantry, matched] = await DB.batch<{ canonical_name: string }>([
-    DB.prepare("SELECT canonical_name FROM pantry_items WHERE user_id = ?").bind(userId),
+/** Pantry items first, then earlier matches, most recent first; one entry per name, with its unit. */
+export async function knownItems(DB: D1Database, userId: string): Promise<{ name: string; unit: string }[]> {
+  const [pantry, matched] = await DB.batch<{ canonical_name: string; unit: string }>([
+    DB.prepare("SELECT canonical_name, unit FROM pantry_items WHERE user_id = ?").bind(userId),
+    // The bare `unit` comes from the row holding MAX(matched_at), i.e. the latest match.
     DB.prepare(
-      "SELECT canonical_name FROM ingredient_matches WHERE user_id = ? AND fallback = 0 GROUP BY canonical_name ORDER BY MAX(matched_at) DESC LIMIT 200",
+      "SELECT canonical_name, unit, MAX(matched_at) AS latest FROM ingredient_matches WHERE user_id = ? AND fallback = 0 GROUP BY canonical_name ORDER BY latest DESC LIMIT 200",
     ).bind(userId),
   ]);
-  return [...new Set([...pantry.results, ...matched.results].map((r) => r.canonical_name))].slice(0, 200);
+  const byName = new Map<string, string>();
+  for (const r of [...pantry.results, ...matched.results]) if (!byName.has(r.canonical_name)) byName.set(r.canonical_name, r.unit);
+  return [...byName].slice(0, 200).map(([name, unit]) => ({ name, unit }));
 }
 
 /** One AI call for all inputs; names missing from the result (failure, rate limit, bad item) are not in the map. */
@@ -52,7 +55,7 @@ async function aiMatch(env: Env, userId: string, inputs: Input[]): Promise<Map<s
   try {
     const { success } = await env.PARSE_LIMIT.limit({ key: userId });
     if (!success) return out;
-    const known = await knownNames(env.DB, userId);
+    const known = (await knownItems(env.DB, userId)).map((i) => i.name);
     const res = await runModel(env.AI, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

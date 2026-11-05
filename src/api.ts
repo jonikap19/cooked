@@ -59,7 +59,7 @@ const send = (method: string, body?: unknown): RequestInit => ({ method, body: b
 export type SharedPreview = Omit<Snapshot, "ingredient_notes"> & { ingredient_notes: Omit<IngredientNote, "author">[] };
 
 export interface GroupSummary { id: string; name: string; member_count: number; recipe_count: number }
-export interface GroupDetail { id: string; name: string; members: string[]; invites: string[]; recipes: RecipeSummary[] }
+export interface GroupDetail { id: string; name: string; members: string[]; invites: string[]; recipes: RecipeSummary[]; allergies: RecipeFull["allergies"] }
 export interface Invite { group_id: string; group_name: string; invited_by: string }
 
 export const api = {
@@ -78,6 +78,7 @@ export const api = {
   saveNote: (id: string, text: string) => request<void>(`/api/recipes/${id}/note`, send("PUT", { text })),
   saveIngredientNote: (id: string, targetId: string, text: string) =>
     request<void>(`/api/recipes/${id}/ingredient-notes/${targetId}`, send("PUT", { text })),
+  pantrySuggestions: () => request<{ name: string; unit: string }[]>("/api/pantry/suggestions"),
   listPantry: () => request<PantryItem[]>("/api/pantry"),
   addPantry: (name: string, amount: number | null, unit: string) =>
     request<PantryItem>("/api/pantry", send("POST", { name, amount, unit })),
@@ -122,5 +123,7 @@ export const api = {
   acceptInvite: (groupId: string) => request<void>(`/api/invites/${groupId}/accept`, send("POST")),
   declineInvite: (groupId: string) => request<void>(`/api/invites/${groupId}`, send("DELETE")),
   shareToGroup: (id: string, group_id: string) => request<{ id: string }>(`/api/recipes/${id}/share-to-group`, send("POST", { group_id })),
+  getAllergies: () => request<string[]>("/api/allergies"),
+  saveAllergies: (allergens: string[]) => request<void>("/api/allergies", send("PUT", { allergens })),
   splitStep: (text: string) => request<{ steps: StepValues[] }>("/api/split-step", send("POST", { text })),
 };

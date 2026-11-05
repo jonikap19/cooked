@@ -2,6 +2,7 @@ import { ChevronLeft, LoaderCircle, Minus, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
+import UnitSelect from "../components/UnitSelect";
 import { blankForm, blankIngredient, blankStep, formToRecipe, type OwnRecipeForm } from "../lib/ownRecipe";
 
 const without = <T,>(rows: T[], index: number) => rows.filter((_, position) => position !== index);
@@ -70,8 +71,11 @@ export default function OwnRecipe() {
       {form.ingredients.map((ingredient, index) => (
         <div className="own-row" key={index}>
           <input className="field own-amount" aria-label="Menge" inputMode="decimal" placeholder="Menge" value={ingredient.amount} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { amount: event.target.value }) })} />
-          <input className="field own-unit" aria-label="Einheit" placeholder="Einheit" maxLength={30} value={ingredient.unit} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { unit: event.target.value }) })} />
+          <div className="own-unit"><UnitSelect aria-label="Einheit" value={ingredient.unit} onChange={(unit) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { unit }) })} /></div>
           <input className="field own-grow" aria-label="Zutat" placeholder="Zutat" maxLength={200} value={ingredient.name} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { name: event.target.value }) })} />
+          <label className="spice-check">
+            <input type="checkbox" checked={ingredient.spice} onChange={(event) => setForm({ ...form, ingredients: withRow(form.ingredients, index, { spice: event.target.checked }) })} /> Gewürz
+          </label>
           <button className="icon-button" aria-label="Zutat entfernen" onClick={() => setForm({ ...form, ingredients: without(form.ingredients, index) })}>
             <X aria-hidden="true" />
           </button>

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { countLabel, placeholderColor, platformLabel } from "../../shared/format";
 import type { RecipeSummary } from "../../shared/schema";
 
-export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
+export default function RecipeCard({ recipe, warnings = [] }: { recipe: RecipeSummary; warnings?: string[] }) {
   const meta = [
     recipe.total_minutes !== null && `${recipe.total_minutes} Min`,
     countLabel(recipe.servings, "Portion", "Portionen"),
@@ -20,6 +20,7 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       <div className="card-body">
         <h2>{recipe.title}</h2>
         <p className="meta">{meta.join(" · ")}</p>
+        {warnings.length > 0 && <p className="allergy-line">{warnings.join(" · ")}</p>}
         {recipe.adjustment_count > 0 && (
           <span className="badge">{countLabel(recipe.adjustment_count, "Anpassung", "Anpassungen")}</span>
         )}

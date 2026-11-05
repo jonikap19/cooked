@@ -25,6 +25,10 @@ describe("units", () => {
     expect(normalizeUnit(" EL ")).toEqual({ unit: "EL", factor: 1 });
     expect(normalizeUnit("  ")).toEqual({ unit: "Stück", factor: 1 });
   });
+  it("treats Stk spellings as Stück", () => {
+    expect(normalizeUnit("Stk")).toEqual({ unit: "Stück", factor: 1 });
+    expect(toBase(2, "Stk.")).toEqual({ amount: 2, unit: "Stück" });
+  });
   it("builds name keys", () => {
     expect(nameKey("  Zwiebeln,  rot ")).toBe("zwiebeln, rot");
     expect(nameKey("Zwiebeln,")).toBe("zwiebeln");

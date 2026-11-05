@@ -10,7 +10,7 @@ const stock = (canonical_name: string, unit: string, amount: number | null, alwa
   canonical_name, unit, amount, always_at_home,
 });
 const ingredient = (id: string, name: string, amount: number | null, unit: string, status: Merged<Ingredient>["status"] = "original"): Merged<Ingredient> =>
-  ({ id, position: 0, name, amount, unit, status, original: null, adjustmentIds: [] });
+  ({ id, position: 0, name, amount, unit, spice: false, status, original: null, adjustmentIds: [] });
 
 describe("scaledNeeds", () => {
   it("doubles amounts, skips removed, converts to base units", () => {
