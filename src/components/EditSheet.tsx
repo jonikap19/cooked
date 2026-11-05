@@ -49,7 +49,7 @@ export default function EditSheet({ kind, item, note: storedNote, servingsHint, 
         ? { name: name.trim(), amount: amountFromField(amount, ingredient?.amount ?? null), unit: unit.trim(), spice }
         : { text: text.trim(), duration_minutes: parseNumber(duration) };
     if (!item) return onSave(next, null);
-    const changed = changedKeys(item as unknown as Values, next);
+    const changed = changedKeys({ ...item, spice: ingredient?.spice ?? false } as unknown as Values, next);
     const valuesChanged = Object.keys(changed).length > 0;
     const noteChanged = note.trim() !== storedNote;
     if (!valuesChanged && !noteChanged) return onClose();

@@ -272,7 +272,7 @@ export default function RecipeDetail() {
 
         {warnings.length > 0 && (
           <div className="allergy-box" role="note">
-            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+            {warnings.map((warning, index) => <p key={index}>{warning}</p>)}
           </div>
         )}
 

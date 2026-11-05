@@ -21,6 +21,10 @@ it("lists every unit in the system prompt", () => {
 });
 
 describe("parseRecipeText", () => {
+  it("defaults a missing spice to false", async () => {
+    const lax = { ...recipe, ingredients: [{ name: "Nudeln", amount: 200, unit: "g" }] };
+    expect((await parseRecipeText(ok(lax), "x")).ingredients[0].spice).toBe(false);
+  });
   it("returns a valid response object and keeps amount null", async () => {
     const r = await parseRecipeText(ok(recipe), "x");
     expect(r).toEqual(recipe);

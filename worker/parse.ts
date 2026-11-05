@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { ParsedRecipe } from "../shared/schema";
+import { IngredientInput, ParsedRecipe } from "../shared/schema";
 import { UNITS } from "../shared/units";
 import type { AppEnv } from "./auth";
 import { invalid, readJson } from "./recipes";
@@ -60,7 +60,8 @@ export async function parseRecipeText(ai: Ai, text: string): Promise<ParsedRecip
     console.warn("parse: model call failed:", e instanceof Error ? e.name : "unknown");
     throw new ParseError();
   }
-  const parsed = ParsedRecipe.safeParse(raw);
+  // The AI schema requires spice, but JSON mode does not guarantee it; a missing one means false.
+  const parsed = ParsedRecipe.extend({ ingredients: z.array(IngredientInput).max(100) }).safeParse(raw);
   if (!parsed.success) {
     console.warn("parse: invalid model output at", parsed.error.issues.map((i) => i.path.join(".")).join(", "));
     throw new ParseError();

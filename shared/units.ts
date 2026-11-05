@@ -8,6 +8,11 @@ const CONVERTIBLE: Record<string, { unit: string; factor: number }> = {
   l: { unit: "ml", factor: 1000 },
   cl: { unit: "ml", factor: 10 },
   dl: { unit: "ml", factor: 100 },
+  // Spelling aliases, not conversions: old recipes say "Stk", so their keys must match "Stück".
+  stk: { unit: "Stück", factor: 1 },
+  "stk.": { unit: "Stück", factor: 1 },
+  "st.": { unit: "Stück", factor: 1 },
+  stück: { unit: "Stück", factor: 1 },
 };
 
 export function normalizeUnit(unit: string): { unit: string; factor: number } {
