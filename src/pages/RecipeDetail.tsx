@@ -10,7 +10,7 @@ import ShareSheet from "../components/ShareSheet";
 import TagDialog from "../components/TagDialog";
 import RecipeImage from "../components/RecipeImage";
 import { allergenHits, allergyWarnings } from "../../shared/allergens";
-import { countLabel, formatShortDate, initials, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
+import { commentLabel, countLabel, formatShortDate, initials, placeholderColor, platformLabel, scaleAmount } from "../../shared/format";
 import { mergeRecipe, type Merged } from "../../shared/merge";
 import type { AdjustmentInput, Ingredient, IngredientValues, RecipeFull, Step, StepValues } from "../../shared/schema";
 
@@ -65,7 +65,7 @@ export default function RecipeDetail() {
   // Only needed for "In Gruppe teilen"; a failed lookup just hides it.
   useEffect(() => {
     api.listGroups().then(setGroups, () => {});
-    // Only labels the caller's own allergy warning "Du"; without it it shows initials.
+    // Only labels the caller's own allergy warning and comments "Du"; without it they show initials.
     api.me().then((me) => setUserId(me.userId), () => {});
   }, []);
 
@@ -141,6 +141,8 @@ export default function RecipeDetail() {
     return [...new Set(authors.filter((a): a is string => !!a).map(initials))].join(", ");
   };
   const noteFor = (itemId: string) => full.ingredient_notes.find((n) => n.target_id === itemId)?.body ?? "";
+  const noteLabelFor = (itemId: string) =>
+    commentLabel(full.ingredient_notes.find((n) => n.target_id === itemId)?.author, userId, !!recipe.group_id);
 
   // EditSheet builds values for `kind`; TypeScript cannot tie the two together, hence the casts.
   const saveValues = (values: IngredientValues | StepValues) => {
@@ -200,6 +202,7 @@ export default function RecipeDetail() {
         key={item.id}
         item={item}
         note={noteFor(item.id)}
+        noteLabel={noteLabelFor(item.id)}
         kind={tab}
         sharedBy={showOriginal ? undefined : sharedByFor(item.id, (item as Merged<Ingredient>).adjustmentIds ?? [])}
         number={stepNumber}

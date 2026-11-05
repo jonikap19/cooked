@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countLabel, detectPlatform, formatAmount, formatQuantity, formatShortDate,
-  initials, placeholderColor, scaleAmount,
+  commentLabel, initials, placeholderColor, scaleAmount,
 } from "../shared/format";
 
 describe("format", () => {
@@ -39,6 +39,14 @@ describe("format", () => {
     expect(formatShortDate("2026-10-28T10:00:00Z")).toBe("28. Okt.");
     expect(formatShortDate("not a date")).toBe("");
   });
+  it("labels a comment with its author on group recipes only", () => {
+    const me = "jonathan.kapfenstein@outlook.de";
+    expect(commentLabel("anna.berg@example.com", me, true)).toBe("Kommentar · AB");
+    expect(commentLabel(me, me, true)).toBe("Kommentar · Du");
+    expect(commentLabel("anna.berg@example.com", me, false)).toBe("Kommentar");
+    expect(commentLabel(undefined, me, true)).toBe("Kommentar");
+  });
+
   it("builds initials", () => {
     expect(initials("jonathan.kapfenstein@outlook.de")).toBe("JK");
     expect(initials("anna@x.de")).toBe("AN");

@@ -6,6 +6,7 @@ import type { Ingredient, Step } from "../../shared/schema";
 interface Props {
   item: Merged<Ingredient> | Merged<Step>;
   note?: string; // ingredient or step note, shown muted: a note is not an adjustment
+  noteLabel?: string; // heading above the note, e.g. "Kommentar · JK"
   kind: "ingredient" | "step";
   number?: number;
   scale: (n: number | null) => number | null;
@@ -18,7 +19,7 @@ interface Props {
   allergen?: boolean; // the ingredient hits someone's allergy
 }
 
-export default function ItemRow({ item, note, kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir", sharedBy, allergen = false }: Props) {
+export default function ItemRow({ item, note, noteLabel = "Kommentar", kind, number, scale, showOriginal, onEdit, onRestore, busy = false, by = "dir", sharedBy, allergen = false }: Props) {
   const status = showOriginal ? "original" : item.status;
   const changed = status === "modified" || status === "added";
   const ingredient = kind === "ingredient" ? (item as Merged<Ingredient>) : null;
@@ -56,7 +57,12 @@ export default function ItemRow({ item, note, kind, number, scale, showOriginal,
         <span className="item-main">{ingredient ? ingredient.name : step?.text}</span>
         {allergen && <span className="allergy-marker">Allergen</span>}
         {step?.duration_minutes != null && <span className={changed ? "item-duration adj" : "item-duration"}>{step.duration_minutes} Min</span>}
-        {note && <span className="item-note">{note}</span>}
+        {note && (
+          <span className="item-note">
+            <span className="note-label">{noteLabel}</span>
+            {note}
+          </span>
+        )}
         {sharedBy && <span className="meta small">Geteilt von {sharedBy}</span>}
         {subline && <span className="item-sub">{subline}</span>}
       </div>
