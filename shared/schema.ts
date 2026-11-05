@@ -138,6 +138,8 @@ export const RecipeFull = z.object({
   adjustments: z.array(Adjustment),
   note: z.string().max(5000),
   ingredient_notes: z.array(IngredientNote),
+  // The caller's allergies on a personal recipe, every current member's on a group recipe. Never in share links.
+  allergies: z.array(z.object({ user_id: z.string(), allergens: z.array(z.string()) })),
 });
 export type RecipeFull = z.infer<typeof RecipeFull>;
 
@@ -177,6 +179,8 @@ export const ListCooked = z.object({ items: z.array(PantryKey.extend({ amount: P
 
 export const GroupName = z.object({ name: z.string().trim().min(1).max(60) });
 export const GroupInvite = z.object({ email: z.string().trim().toLowerCase().max(254).pipe(z.email()) });
+// Trimmed and capped per item; duplicates are dropped on save.
+export const AllergyList = z.object({ allergens: z.array(z.string().trim().min(1).max(40)).max(30) });
 export const ShareToGroup = z.object({ group_id: z.string().min(1).max(100) });
 
 export type ListBody = {

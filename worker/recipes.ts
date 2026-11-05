@@ -3,6 +3,7 @@ import { z } from "zod";
 import { detectPlatform } from "../shared/format";
 import { AdjustmentInput, IngredientInput, NewRecipe, NoteBody, StepValues, type Adjustment, type Recipe, type RecipeFull, type RecipeSummary } from "../shared/schema";
 import { recipeAccess } from "./access";
+import { allergiesOf } from "./allergies";
 import type { AppEnv } from "./auth";
 import { matchRecipe } from "./match";
 
@@ -105,18 +106,21 @@ recipes.post("/api/recipes", async (c) => {
   return c.json({ id }, 201);
 });
 
+// Allergies are per viewer, so only GET /api/recipes/:id adds them; loaders (and so snapshots) never carry them.
+type RecipeData = Omit<RecipeFull, "allergies">;
+
 /** The recipe with all its child rows, or null if it does not exist or this user has no access. */
-export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeFull | null> {
+export async function loadRecipe(DB: D1Database, id: string, userId: string): Promise<RecipeData | null> {
   return (await recipeAccess(DB, userId, id)) ? loadRecipeUnchecked(DB, id) : null;
 }
 
 /** Any recipe by id, without an access check: the caller must have checked access. */
-export async function loadRecipeUnchecked(DB: D1Database, id: string): Promise<RecipeFull | null> {
+export async function loadRecipeUnchecked(DB: D1Database, id: string): Promise<RecipeData | null> {
   const row = await DB.prepare("SELECT * FROM recipes WHERE id = ?").bind(id).first<RecipeRow>();
   return row && loadChildren(DB, row);
 }
 
-async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull> {
+async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeData> {
   const id = row.id;
   const [ing, steps, adj, note, ingredientNotes] = await DB.batch([
     DB.prepare("SELECT id, position, name, amount, unit, spice FROM ingredients WHERE recipe_id = ? ORDER BY position").bind(id),
@@ -141,8 +145,13 @@ async function loadChildren(DB: D1Database, row: RecipeRow): Promise<RecipeFull>
 }
 
 recipes.get("/api/recipes/:id", async (c) => {
-  const full = await loadRecipe(c.env.DB, c.req.param("id"), c.var.userId);
-  return full ? c.json(full) : c.json(notFound, 404);
+  const { DB } = c.env;
+  const full = await loadRecipe(DB, c.req.param("id"), c.var.userId);
+  if (!full) return c.json(notFound, 404);
+  // Access is checked above: on a group recipe the caller is a member, so co-members' allergies may be shown.
+  const { group_id } = full.recipe;
+  const allergies = await allergiesOf(DB, group_id ? { groupId: group_id } : { userId: c.var.userId });
+  return c.json({ ...full, allergies } satisfies RecipeFull);
 });
 
 recipes.patch("/api/recipes/:id", async (c) => {

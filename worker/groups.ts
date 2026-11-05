@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { GroupInvite, GroupName, ShareToGroup } from "../shared/schema";
 import { recipeAccess } from "./access";
+import { allergiesOf } from "./allergies";
 import type { AppEnv } from "./auth";
 import { insertSnapshot, snapshotRecipe } from "./copy";
 import { tooManyRequests } from "./parse";
@@ -59,6 +60,7 @@ groups.get("/api/groups/:id", async (c) => {
     members: (members.results as { user_id: string }[]).map((m) => m.user_id),
     invites: (invites.results as { email: string }[]).map((i) => i.email),
     recipes: await recipeSummaries(DB, { groupId: id }),
+    allergies: await allergiesOf(DB, { groupId: id }),
   });
 });
 

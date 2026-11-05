@@ -17,6 +17,7 @@ const toFull = ({ recipe, ingredients, steps, adjustments, note, ingredient_note
   adjustments,
   note,
   ingredient_notes: ingredient_notes.map((n) => ({ ...n, author: "" })),
+  allergies: [], // a share link carries no one's allergies
 });
 
 export default function SharedRecipe() {

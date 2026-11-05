@@ -16,7 +16,7 @@ const adjustment = (over: Partial<Adjustment>): Adjustment => ({
   new_values: null, author: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...over,
 });
 const full = (adjustments: Adjustment[]): RecipeFull => ({
-  recipe, ingredients: [flour, salt], steps: [stepOne, stepTwo], adjustments, note: "", ingredient_notes: [],
+  recipe, ingredients: [flour, salt], steps: [stepOne, stepTwo], adjustments, note: "", ingredient_notes: [], allergies: [],
 });
 
 describe("mergeRecipe", () => {

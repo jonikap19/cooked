@@ -9,6 +9,7 @@ import { pantry } from "./pantry";
 import { list } from "./list";
 import { share } from "./share";
 import { groups } from "./groups";
+import { allergies } from "./allergies";
 import { accessAuth, sameOrigin, securityHeaders, type AppEnv } from "./auth";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 
@@ -46,6 +47,7 @@ export function buildApp(getJwks: (env: Env) => JWTVerifyGetKey) {
   app.route("/", list);
   app.route("/", share);
   app.route("/", groups);
+  app.route("/", allergies);
 
   return app;
 }
