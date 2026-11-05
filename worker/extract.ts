@@ -1,4 +1,4 @@
-// Reads recipe text and an image URL out of a fetched page; see docs/link-import-findings.md.
+// Reads recipe text and an image URL out of a fetched page.
 export type Extracted = {
   /** Text worth sending to the AI, or null when the page has no usable recipe text. */
   text: string | null;
