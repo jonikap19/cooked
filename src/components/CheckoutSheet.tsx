@@ -58,6 +58,7 @@ export default function CheckoutSheet({ lines, onConfirm, onClose, error: server
         </ul>
         {(error || serverError) && <p className="error" role="alert">{error || serverError}</p>}
         <button type="submit" className="primary-button inline" disabled={busy}>In den Vorrat übernehmen</button>
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
       </form>
     </dialog>
   );

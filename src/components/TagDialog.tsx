@@ -41,6 +41,7 @@ export default function TagDialog({ tags, busy, onChange, onClose }: Props) {
         <input id={inputId} className="field" maxLength={30} value={draft} onChange={(e) => setDraft(e.target.value)} />
         <button type="submit" className="primary-button inline" disabled={busy}>Hinzufügen</button>
       </form>
+      <button type="button" className="text-button" onClick={onClose}>Fertig</button>
       </div>
     </dialog>
   );

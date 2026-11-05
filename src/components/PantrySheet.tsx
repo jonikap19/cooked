@@ -74,6 +74,7 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
         {item && onDelete && (
           <button type="button" className="text-button" disabled={busy} onClick={onDelete}>Löschen</button>
         )}
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
       </form>
     </dialog>
   );

@@ -43,6 +43,7 @@ export default function TextSheet({ title, label, submitLabel, type = "text", ma
         <input id={inputId} className="field" type={type} maxLength={maxLength} value={value} onChange={(e) => setValue(e.target.value)} />
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit" className="primary-button inline" disabled={busy}>{submitLabel}</button>
+        <button type="button" className="text-button" disabled={busy} onClick={onClose}>Abbrechen</button>
       </form>
     </dialog>
   );
