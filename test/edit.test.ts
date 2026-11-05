@@ -37,5 +37,9 @@ describe("edit helpers", () => {
     expect(amountOptions("g", 130)).toContain(130);
     expect(amountOptions("g", 130)).toEqual([...amountOptions("g", 130)].sort((a, b) => a - b));
     expect(amountOptions("g", 50)).toEqual(g);
+    const resting = amountOptions("Stück", 0, true);
+    expect(resting.filter((n) => n === 0)).toHaveLength(1);
+    expect(resting[0]).toBe(0);
+    expect(amountOptions("Stück", 2, true)[0]).toBe(0);
   });
 });

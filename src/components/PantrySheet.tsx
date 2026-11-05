@@ -32,7 +32,7 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
   // A failed fetch just means no suggestions.
   useEffect(() => void api.pantrySuggestions().then(setSuggestions, () => undefined), []);
 
-  const options = [...(item?.always_at_home ? [0] : []), ...amountOptions(unit, item?.amount ?? null)];
+  const options = amountOptions(unit, item?.amount ?? null, item?.always_at_home);
 
   const changeName = (value: string) => {
     setName(value);
@@ -42,7 +42,7 @@ export default function PantrySheet({ item, onSave, onDelete, onClose, error: se
   const changeUnit = (value: string) => {
     setUnit(value);
     // A wheel value that does not exist for the new unit would show as another one.
-    if (!amountOptions(value, item?.amount ?? null).includes(Number(amount))) setAmount("");
+    if (!amountOptions(value, item?.amount ?? null, item?.always_at_home).includes(Number(amount))) setAmount("");
   };
 
   const submit = (event: React.FormEvent) => {
