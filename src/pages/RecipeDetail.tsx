@@ -237,13 +237,11 @@ export default function RecipeDetail() {
 
       <div className="detail-sheet">
         <h1>{recipe.title}</h1>
-        <p className="meta detail-meta">
-          {meta}
-          {meta && " · "}
-          <button className="text-button inline-button" onClick={() => setTagsOpen(true)}>
-            {recipe.tags.length ? recipe.tags.join(", ") : "Tags hinzufügen"}
-          </button>
-        </p>
+        {meta && <p className="meta detail-meta">{meta}</p>}
+        <button className="tag-row" onClick={() => setTagsOpen(true)}>
+          {recipe.tags.map((tag) => <span key={tag} className="mini-chip">{tag}</span>)}
+          <span className="mini-chip mini-chip-add">{recipe.tags.length ? "Bearbeiten" : "+ Tags"}</span>
+        </button>
 
         {warnings.length > 0 && (
           <div className="allergy-box" role="note">

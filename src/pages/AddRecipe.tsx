@@ -1,6 +1,6 @@
 import { Check, ChevronLeft, LoaderCircle } from "lucide-react";
 import { useId, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ApiError, api, SessionExpiredError } from "../api";
 import { detectPlatform, formatQuantity, platformLabel } from "../../shared/format";
 import type { NewRecipe, ParsedRecipe } from "../../shared/schema";
@@ -110,7 +110,6 @@ export default function AddRecipe() {
             {value === "link" ? "Link einfügen" : "Text einfügen"}
           </button>
         ))}
-        <button onClick={() => navigate("/neu/eigenes")}>Eigenes Rezept</button>
       </div>
 
       {tab === "link" && (
@@ -206,6 +205,10 @@ export default function AddRecipe() {
             </button>
           )}
         </>
+      )}
+
+      {!parsed && (
+        <Link to="/neu/eigenes" className="text-button own-link">Oder ein eigenes Rezept schreiben</Link>
       )}
 
       {error && (

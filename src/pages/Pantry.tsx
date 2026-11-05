@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api, messageOf } from "../api";
 import PantrySheet, { formatAmount } from "../components/PantrySheet";
@@ -13,6 +13,7 @@ export default function Pantry() {
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -68,9 +69,17 @@ export default function Pantry() {
         </>
       )}
       {!sheet && error && <p className="error" role="alert">{error}</p>}
-      {items && items.length === 0 && <p className="empty">Noch keine Artikel</p>}
+      {items && items.length === 0 && (
+        <p className="empty">Noch nichts im Vorrat. Was hier steht, zieht die Einkaufsliste ab; „Immer da“ kommt nie drauf, z. B. Salz und Öl.</p>
+      )}
+      {items && items.length > 0 && (
+        <label className="search">
+          <Search size={20} aria-hidden />
+          <input type="search" placeholder="Vorrat durchsuchen" aria-label="Vorrat durchsuchen" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </label>
+      )}
       <ul className="list" style={{ listStyle: "none", padding: 0 }}>
-        {items?.map((item) => (
+        {items?.filter((item) => item.canonical_name.toLowerCase().includes(query.trim().toLowerCase())).map((item) => (
           <li key={`${item.canonical_name}|${item.unit}`} className="pantry-row">
             <button className="pantry-edit" onClick={() => { setError(""); setSheet({ item }); }}>
               {item.canonical_name}

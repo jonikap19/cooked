@@ -76,15 +76,16 @@ export default function Group() {
         <h1>{group.name}</h1>
       </header>
 
-      <div className="members">
-        {group.members.map((email) => (
-          <span key={email} className="avatar" title={email}>{initials(email)}</span>
+      <ul className="members">
+        {[...group.members.map((email) => ({ email, pending: false })), ...group.invites.map((email) => ({ email, pending: true }))].map(({ email, pending }) => (
+          <li key={email} className={pending ? "member avatar-pending" : "member"}>
+            <span className="avatar" aria-hidden="true">{initials(email)}</span>
+            <span className="member-email">{email}</span>
+            {pending && <span className="meta small">eingeladen</span>}
+          </li>
         ))}
-        {group.invites.map((email) => (
-          <span key={email} className="avatar avatar-pending" title={email}>{initials(email)}</span>
-        ))}
-        <button className="text-button" onClick={() => setInviting(true)}>Einladen</button>
-      </div>
+      </ul>
+      <button className="text-button" onClick={() => setInviting(true)}>Einladen</button>
 
       {error && <p className="error" role="alert">{error}</p>}
       {group.recipes.length === 0 && <p className="empty">Noch keine Rezepte</p>}

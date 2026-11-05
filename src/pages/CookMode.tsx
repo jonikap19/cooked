@@ -159,7 +159,7 @@ export default function CookMode() {
         <button className="cook-icon" aria-label="Schließen" onClick={back}><X size={22} /></button>
         <span className="cook-title">{full.recipe.title}</span>
         <button className="cook-wake" aria-pressed={held} onClick={() => setAwake((a) => !a)}>
-          <Sun size={18} aria-hidden="true" />{held ? "An" : "Aus"}
+          <Sun size={18} aria-hidden="true" />{held ? "Bildschirm an" : "Bildschirm aus"}
         </button>
       </header>
       {step ? (
